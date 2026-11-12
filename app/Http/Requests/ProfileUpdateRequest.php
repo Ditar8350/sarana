@@ -26,6 +26,22 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'nomor_induk' => ['nullable', 'string', 'max:50'],
+            'no_hp' => ['nullable', 'string', 'max:30'],
+            'fakultas' => ['nullable', 'string', 'max:150'],
+            'prodi' => ['required_with:fakultas', 'nullable', 'string', 'max:150'],
+        ];
+    }
+
+    /**
+     * Custom validation messages.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'prodi.required_with' => 'Silakan pilih Program Studi terlebih dahulu setelah memilih Fakultas.',
         ];
     }
 }

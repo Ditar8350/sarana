@@ -108,17 +108,21 @@ export function DetailBerita({ news }: DetailNewsProps) {
                         </motion.div>
                     </header>
 
-                    {/* Gambar Cover */}
+                    {/* Gambar Cover Tanpa Terpotong */}
                     <motion.figure
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="mb-12 rounded-3xl overflow-hidden shadow-lg shadow-ink/5 border border-surface-container"
+                        className="relative mb-12 rounded-3xl overflow-hidden shadow-lg shadow-ink/5 border border-surface-container bg-slate-950/5 flex items-center justify-center p-2 sm:p-4 min-h-[260px]"
                     >
+                        <div
+                            className="absolute inset-0 bg-cover bg-center blur-2xl opacity-20 scale-110 pointer-events-none"
+                            style={{ backgroundImage: `url(${safeImage})` }}
+                        />
                         <img
                             src={safeImage}
                             alt={news.title}
-                            className="w-full h-auto aspect-video object-cover"
+                            className="relative z-10 max-h-[540px] w-auto max-w-full object-contain rounded-2xl shadow-sm"
                             onError={(e) => {
                                 (e.target as HTMLImageElement).src =
                                     "https://via.placeholder.com/1200x675?text=Berita+Sarpras";

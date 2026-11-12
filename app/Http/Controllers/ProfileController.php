@@ -29,15 +29,40 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $validated = $request->validated();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+
+        if ($request->has('nomor_induk')) {
+            $user->nomor_induk = $validated['nomor_induk'] ?: null;
         }
 
-        $request->user()->save();
+        if ($request->has('no_hp')) {
+            $user->no_hp = $validated['no_hp'] ?: null;
+        }
 
-        return Redirect::route('profile.edit');
+        if (! $user->isKepalaBagian() && ! $user->isAdmin() && ! $user->isStaf()) {
+            if ($request->hasAny(['fakultas', 'prodi'])) {
+                $fakultas = trim((string) ($validated['fakultas'] ?? ''));
+                $prodi = trim((string) ($validated['prodi'] ?? ''));
+
+                if ($fakultas !== '' && $prodi !== '') {
+                    $user->unit_ruangan = "{$prodi} - {$fakultas}";
+                } elseif ($fakultas === '' && $prodi === '') {
+                    $user->unit_ruangan = null;
+                }
+            }
+        }
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        return Redirect::route('profile.edit')->with('success', 'Biodata dan informasi profil Anda berhasil diperbarui.');
     }
 
     /**

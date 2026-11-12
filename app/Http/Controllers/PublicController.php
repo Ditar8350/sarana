@@ -11,13 +11,13 @@ use App\Models\View;
 use App\Models\VisiMisi;
 use Carbon\Carbon;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Illuminate\Http\RedirectResponse;
 
 class PublicController extends Controller
 {
@@ -27,7 +27,7 @@ class PublicController extends Controller
     public function index(): Response
     {
         $view = View::firstOrCreate([], ['count' => 2000]);
-        if (!session()->has('visited_landing')) {
+        if (! session()->has('visited_landing')) {
             $view->increment('count');
             session()->put('visited_landing', true);
         }
@@ -80,9 +80,16 @@ class PublicController extends Controller
      */
     public function berita(string $slug): Response
     {
-        $berita = News::where('slug', $slug)
-            ->where('status', 'Aktif')
-            ->first();
+        $query = News::where('slug', $slug);
+
+        $user = auth()->user();
+        $role = $user ? (is_string($user->role) ? $user->role : $user->role->value) : null;
+
+        if (! in_array($role, ['admin', 'staf'], true)) {
+            $query->where('status', 'Aktif');
+        }
+
+        $berita = $query->first();
 
         return Inertia::render('DetailBerita', [
             'news' => $berita ? [
@@ -92,7 +99,8 @@ class PublicController extends Controller
                 'content' => nl2br(e($berita->description)),
                 'image' => $berita->image ?: '/images/Hero.png',
                 'date' => Carbon::parse($berita->date)->translatedFormat('d M Y'),
-                'author' => $berita->author,
+                'author' => $berita->author ?: 'Humas Biro Sarpras',
+                'status' => $berita->status ?? 'Aktif',
             ] : null,
         ]);
     }
@@ -124,14 +132,15 @@ class PublicController extends Controller
     {
 
         $path = str_replace('/storage/', '', $dokumen->file_path);
-    
+
         // Ambil path absolut fisik file di server
         $fullPath = Storage::disk('public')->path($path);
-        if (!file_exists($fullPath)) {
+        if (! file_exists($fullPath)) {
             return redirect()->back()->with('error', 'Berkas dokumen fisik tidak ditemukan di server.');
         }
         $extension = pathinfo($dokumen->file_path, PATHINFO_EXTENSION) ?: 'pdf';
-        $namaUnduhan = Str::slug($dokumen->title) . '.' . $extension;
+        $namaUnduhan = Str::slug($dokumen->title).'.'.$extension;
+
         return response()->download($fullPath, $namaUnduhan);
     }
 

@@ -128,14 +128,18 @@ export function BeritaSection({
                                             transition={{ duration: 0.4 }}
                                             className="group bg-primary/75 rounded-2xl overflow-hidden shadow-lg border border-white/10 transition-all duration-300 flex flex-col h-full"
                                         >
-                                            <div className="relative h-64 sm:h-80 overflow-hidden bg-slate-100">
+                                            <div className="relative h-64 sm:h-80 overflow-hidden bg-slate-950/20 flex items-center justify-center p-2">
+                                                <div
+                                                    className="absolute inset-0 bg-cover bg-center blur-xl opacity-30 scale-110 pointer-events-none"
+                                                    style={{ backgroundImage: `url(${featuredNews.image})` }}
+                                                />
                                                 <img
                                                     src={featuredNews.image}
                                                     alt={featuredNews.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    className="relative z-10 max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500 rounded-lg"
                                                     onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/600x400?text=Berita"; }}
                                                 />
-                                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-bold text-primary shadow-sm flex items-center gap-1.5">
+                                                <div className="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-xs font-bold text-primary shadow-sm flex items-center gap-1.5">
                                                     <Calendar className="w-3.5 h-3.5" />
                                                     {featuredNews.date}
                                                 </div>
@@ -231,14 +235,18 @@ export function BeritaSection({
                                             transition={{ duration: 0.4, delay: index * 0.1 }}
                                             className="group bg-primary/75 rounded-2xl overflow-hidden shadow-lg border border-white/10 transition-all duration-300 flex flex-col h-full"
                                         >
-                                            <div className="relative h-48 overflow-hidden bg-slate-100">
+                                            <div className="relative h-48 overflow-hidden bg-slate-950/20 flex items-center justify-center p-2">
+                                                <div
+                                                    className="absolute inset-0 bg-cover bg-center blur-lg opacity-30 scale-110 pointer-events-none"
+                                                    style={{ backgroundImage: `url(${item.image})` }}
+                                                />
                                                 <img
                                                     src={item.image}
                                                     alt={item.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                    className="relative z-10 max-h-full max-w-full object-contain group-hover:scale-105 transition-transform duration-500 rounded-md"
                                                     onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x300?text=Berita"; }}
                                                 />
-                                                <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-[10px] font-bold text-primary shadow-sm flex items-center gap-1.5">
+                                                <div className="absolute top-3 left-3 z-20 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-md text-[10px] font-bold text-primary shadow-sm flex items-center gap-1.5">
                                                     <Calendar className="w-3 h-3" />
                                                     {item.date}
                                                 </div>

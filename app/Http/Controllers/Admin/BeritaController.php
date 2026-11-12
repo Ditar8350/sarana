@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\BeritaPublishedEvent;
 use App\Http\Controllers\Controller;
 use App\Models\News;
 use Carbon\Carbon;
@@ -60,16 +61,16 @@ class BeritaController extends Controller
         $originalSlug = $slug;
         $counter = 1;
         while (News::where('slug', $slug)->exists()) {
-            $slug = $originalSlug . '-' . $counter++;
+            $slug = $originalSlug.'-'.$counter++;
         }
 
         $imagePath = '/images/Hero.png';
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('uploads/berita', 'public');
-            $imagePath = '/storage/' . $path;
+            $imagePath = '/storage/'.$path;
         }
 
-        News::create([
+        $news = News::create([
             'title' => $cleanTitle,
             'slug' => $slug,
             'author' => $cleanAuthor,
@@ -78,6 +79,10 @@ class BeritaController extends Controller
             'image' => $imagePath,
             'status' => $validated['status'] ?? 'Aktif',
         ]);
+
+        if (($validated['status'] ?? 'Aktif') === 'Aktif') {
+            event(new BeritaPublishedEvent($news));
+        }
 
         return redirect()->back()->with('success', 'Berita berhasil ditambahkan.');
     }
@@ -109,7 +114,7 @@ class BeritaController extends Controller
             $originalSlug = $slug;
             $counter = 1;
             while (News::where('slug', $slug)->where('id', '!=', $berita->id)->exists()) {
-                $slug = $originalSlug . '-' . $counter++;
+                $slug = $originalSlug.'-'.$counter++;
             }
             $berita->slug = $slug;
         }
@@ -119,15 +124,20 @@ class BeritaController extends Controller
                 Storage::disk('public')->delete(str_replace('/storage/', '', $berita->image));
             }
             $path = $request->file('image')->store('uploads/berita', 'public');
-            $berita->image = '/storage/' . $path;
+            $berita->image = '/storage/'.$path;
         }
 
+        $oldStatus = $berita->status;
         $berita->title = $cleanTitle;
         $berita->author = $cleanAuthor;
         $berita->date = $validated['date'];
         $berita->description = $cleanDescription;
         $berita->status = $validated['status'] ?? 'Aktif';
         $berita->save();
+
+        if ($oldStatus !== 'Aktif' && $berita->status === 'Aktif') {
+            event(new BeritaPublishedEvent($berita));
+        }
 
         return redirect()->back()->with('success', 'Berita berhasil diperbarui.');
     }

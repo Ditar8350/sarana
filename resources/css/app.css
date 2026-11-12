@@ -1,3 +1,52 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================== */
+/* SIDEBAR COLLAPSIBLE STYLES (SPECIFICATION)                    */
+/* ============================================================== */
+.sidebar {
+    width: 250px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar.collapsed {
+    width: 70px !important;
+}
+
+/* Sembunyikan semua teks menu dan teks logo menggunakan display: none; */
+.sidebar.collapsed .menu-text,
+.sidebar.collapsed .logo-text,
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .logout-text,
+.sidebar.collapsed .submenu-indicator,
+.sidebar.collapsed .active-dot,
+.sidebar.collapsed .submenu-list {
+    display: none !important;
+}
+
+/* Kondisi tertutup: Pusatkan ikon menu agar berada di tengah (center aligned) */
+.sidebar.collapsed .menu-link,
+.sidebar.collapsed .menu-button {
+    justify-content: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.sidebar.collapsed .menu-icon {
+    margin: 0 auto !important;
+}
+
+/* Sorotan & Garis Indikator Halus Menu Aktif */
+.sidebar.collapsed .active-bar {
+    left: -4px !important;
+}
+
+/* Area konten utama otomatis bertransisi halus saat sidebar buka-tutup */
+.main-content-area {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+

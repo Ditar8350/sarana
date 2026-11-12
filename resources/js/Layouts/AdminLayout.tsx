@@ -3,54 +3,74 @@ import { X } from 'lucide-react';
 import Sidebar from '@/Components/Admin/Sidebar';
 import Topbar from '@/Components/Admin/Topbar';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+interface AdminLayoutProps {
+  children: React.ReactNode;
+  showGlobalSearch?: boolean;
+}
+
+export default function AdminLayout({ children, showGlobalSearch = false }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Fungsi JavaScript untuk mendeteksi klik tombol hamburger dan toggle class 'collapsed'
+  const handleToggleSidebar = () => {
+    if (window.innerWidth >= 1024) {
+      setIsCollapsed((prev) => !prev);
+    } else {
+      setSidebarOpen((prev) => !prev);
+    }
+  };
+
+  const handleExpandSidebar = () => {
+    setIsCollapsed(false);
+  };
 
   return (
-    <div className="min-h-screen bg-[#F9F9FF] text-[#111C2D] font-sans">
-      <div className="flex">
+    <div className="h-screen overflow-hidden bg-[#F4F7F6] text-[#111C2D] font-sans antialiased">
+      <div className="flex h-screen overflow-hidden relative">
         
-        {/* Desktop sidebar */}
-        <aside className="w-72 shrink-0 hidden lg:block h-screen sticky top-0 border-r border-[#004A2C] bg-[#006039]">
-          {/* overflow-y-auto dipindahkan ke sini, HAPUS p-6 agar scrollbar di ujung */}
-          <div className="h-full overflow-y-auto custom-scrollbar">
-            <Sidebar />
+        {/* Desktop Sidebar: Lebar optimal 236px (rapi dan lega), mengecil jadi 68px saat collapsed */}
+        <aside
+          id="main-sidebar"
+          className={`sidebar shrink-0 hidden lg:block h-screen z-30 border-r border-[#004A2C] bg-[#006039] transition-all duration-300 ease-in-out ${
+            isCollapsed ? 'collapsed w-[68px]' : 'w-[236px]'
+          }`}
+        >
+          <div className="h-full overflow-y-auto custom-scrollbar overflow-x-hidden">
+            <Sidebar isCollapsed={isCollapsed} onExpand={handleExpandSidebar} />
           </div>
         </aside>
 
-        {/* Mobile sidebar drawer */}
+        {/* Mobile Sidebar Drawer */}
         {sidebarOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 z-50 lg:hidden">
             <div className="absolute inset-0 bg-[#111C2D]/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
             
-            {/* Ubah bg-white menjadi bg-[#006039] */}
-            <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-[#006039] shadow-xl">
+            <aside className="absolute inset-y-0 left-0 w-[240px] max-w-[85vw] bg-[#006039] shadow-xl z-50">
               <button
-                className="absolute top-4 right-2 z-50 p-2 rounded-lg hover:bg-white/10"
+                className="absolute top-4 right-2 z-50 p-2 rounded-lg hover:bg-white/10 text-white cursor-pointer"
                 onClick={() => setSidebarOpen(false)}
                 aria-label="Tutup menu"
               >
-                {/* Ubah warna ikon X menjadi putih */}
-                <X className="w-6 h-6 text-white" />
+                <X className="w-6 h-6" />
               </button>
               
-              {/* Tambahkan pt-12 agar tombol silang tidak menimpa konten header sidebar */}
               <div className="h-full overflow-y-auto pt-12">
-                <Sidebar />
+                <Sidebar isCollapsed={false} />
               </div>
             </aside>
           </div>
         )}
 
-        {/* Main Content Area */}
-        <div className="flex-1 min-w-0 min-h-screen">
-          <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/70">
-            <div className="px-4 sm:px-6">
-              <Topbar onMenuClick={() => setSidebarOpen(true)} />
+        {/* Main Content Area: Topbar tetap di tempat, area konten di bawahnya yang di-scroll */}
+        <div className="main-content-area flex-1 min-w-0 h-screen flex flex-col overflow-hidden transition-all duration-300 ease-in-out">
+          <header className="shrink-0 z-30 bg-white border-b border-slate-200/85 shadow-2xs">
+            <div className="px-3.5 sm:px-5 lg:px-6">
+              <Topbar onMenuClick={handleToggleSidebar} isCollapsed={isCollapsed} showSearch={showGlobalSearch} />
             </div>
           </header>
 
-          <main className="p-4 sm:p-6 lg:p-8">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 lg:px-6 lg:py-5 scroll-smooth">
             {children}
           </main>
         </div>

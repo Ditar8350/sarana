@@ -42,7 +42,8 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState<boolean>(false);
   const [active, setActive] = useState<string>("Beranda");
   
-  const { url } = usePage();
+  const { url, props } = usePage();
+  const isAuthenticated = Boolean((props as any)?.auth?.user);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -260,10 +261,10 @@ export function Navbar() {
 
             <div className="hidden lg:block">
               <Link
-                href={route('login')}
+                href={isAuthenticated ? '/dashboard' : route('login')}
                 className="px-5 py-2.5 text-sm font-semibold text-white bg-primary rounded-xl shadow-lg shadow-primary/25 hover:bg-primary-dark hover:-translate-y-0.5 transition-all duration-300"
               >
-                Login Admin
+                {isAuthenticated ? 'Dashboard' : 'Login'}
               </Link>
             </div>
 
@@ -299,8 +300,8 @@ export function Navbar() {
             })}
 
             <div className="pt-4 mt-2 border-t border-surface-container flex flex-col gap-2">
-              <Link href={route('login')} className="w-full text-center px-4 py-3 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary-soft transition-colors">
-                Masuk Admin
+              <Link href={isAuthenticated ? '/dashboard' : route('login')} className="w-full text-center px-4 py-3 text-sm font-semibold text-primary border border-primary/30 rounded-xl hover:bg-primary-soft transition-colors">
+                {isAuthenticated ? 'Dashboard' : 'Login'}
               </Link>
             </div>
           </div>
