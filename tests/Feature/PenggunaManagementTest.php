@@ -26,7 +26,7 @@ class PenggunaManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Pengguna')
                 ->has('users', 2)
-                ->has('roles', 4)
+                ->has('roles', count(UserRole::options()))
             );
     }
 
@@ -58,6 +58,7 @@ class PenggunaManagementTest extends TestCase
                     'email' => "pengguna{$index}@unuha.ac.id",
                     'role' => $role->value,
                     'nomor_induk' => "NI-{$index}",
+                    'no_hp' => '08123456789'.$index,
                     'unit_ruangan' => in_array($role, [UserRole::KepalaBagian, UserRole::StafRuangan], true)
                         ? 'Ruang Rapat Senat, Lab Komputer 1'
                         : null,
@@ -105,7 +106,8 @@ class PenggunaManagementTest extends TestCase
                 'email' => $user->email,
                 'role' => UserRole::KepalaBagian->value,
                 'unit_ruangan' => 'Lab Komputer 1, Lab Komputer 2',
-                'nomor_induk' => '',
+                'nomor_induk' => 'NI-UPDATED',
+                'no_hp' => '081299998888',
                 'password' => '',
                 'password_confirmation' => '',
             ])

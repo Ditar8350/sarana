@@ -96,6 +96,7 @@ export default function MaintenanceAdminIndex({
     const [tabFilter, setTabFilter] = useState<string>(isStaf ? 'tugas_saya' : 'semua');
     const [statusFilter, setStatusFilter] = useState<string>('semua');
     const [urgensiFilter, setUrgensiFilter] = useState<string>('semua');
+    const [isUrgensiOpen, setIsUrgensiOpen] = useState(false);
     const [stafCardFilter, setStafCardFilter] = useState<'semua' | 'disetujui' | 'dalam_pengerjaan' | 'selesai'>('semua');
 
     // Detail Modal
@@ -282,6 +283,111 @@ export default function MaintenanceAdminIndex({
         return matchesStatus && matchesUrgensi && matchesSearch;
     });
 
+    const cleanKerusakanText = (deskripsi: string) => {
+        if (!deskripsi) return '-';
+        let text = deskripsi;
+
+        if (text.includes('Catatan:')) {
+            const parts = text.split('Catatan:');
+            const catatan = parts.slice(1).join('Catatan:').trim();
+            if (catatan) {
+                const cleanCatatan = catatan.split('| Lunas:')[0].trim();
+                if (cleanCatatan) {
+                    return cleanCatatan;
+                }
+                return catatan;
+            }
+        }
+
+        text = text.replace(/^Terdeteksi rusak saat\s*(pengembalian transaksi\s*[#A-Za-z0-9-]+\s*(\([^\)]+\))?)?(\.|\:)?\s*/i, '').trim();
+
+        return text || '-';
+    };
+
+    const renderUrgensiButton = () => (
+        <div className="relative">
+            <button
+                type="button"
+                onClick={() => setIsUrgensiOpen(!isUrgensiOpen)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition cursor-pointer shadow-2xs ${
+                    urgensiFilter !== 'semua' || isUrgensiOpen
+                        ? 'bg-amber-50/80 border-amber-300 text-amber-900 ring-1 ring-amber-300'
+                        : 'bg-white border-slate-200/90 hover:bg-slate-50 hover:border-slate-300 text-slate-700'
+                }`}
+                title="Pilih Tingkat Urgensi"
+            >
+                <SlidersHorizontal className={`w-3.5 h-3.5 ${urgensiFilter !== 'semua' ? 'text-amber-600' : 'text-slate-400'}`} />
+                <span>
+                    {urgensiFilter === 'semua'
+                        ? 'Semua Urgensi'
+                        : `Urgensi: ${urgensiFilter.charAt(0).toUpperCase() + urgensiFilter.slice(1)}`}
+                </span>
+                <ChevronDown
+                    className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                        isUrgensiOpen ? 'rotate-180' : ''
+                    }`}
+                />
+            </button>
+
+            {isUrgensiOpen && (
+                <>
+                    <div
+                        className="fixed inset-0 z-20"
+                        onClick={() => setIsUrgensiOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-slate-200 shadow-xl z-30 p-1.5 space-y-1">
+                        <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
+                            <span>Tingkat Urgensi</span>
+                            {urgensiFilter !== 'semua' && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setUrgensiFilter('semua');
+                                        setIsUrgensiOpen(false);
+                                    }}
+                                    className="text-[10px] font-bold text-amber-600 hover:underline cursor-pointer"
+                                >
+                                    Reset
+                                </button>
+                            )}
+                        </div>
+
+                        {[
+                            { value: 'semua', label: 'Semua Urgensi', dot: 'bg-slate-300', activeClass: 'bg-slate-100 text-slate-900' },
+                            { value: 'rendah', label: 'Rendah', dot: 'bg-emerald-500', activeClass: 'bg-emerald-50 text-emerald-800' },
+                            { value: 'sedang', label: 'Sedang', dot: 'bg-amber-500', activeClass: 'bg-amber-50 text-amber-800' },
+                            { value: 'tinggi', label: 'Tinggi', dot: 'bg-orange-500', activeClass: 'bg-orange-50 text-orange-800' },
+                            { value: 'darurat', label: 'Darurat', dot: 'bg-rose-500 animate-pulse', activeClass: 'bg-rose-50 text-rose-800' },
+                        ].map((option) => {
+                            const isSelected = urgensiFilter === option.value;
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => {
+                                        setUrgensiFilter(option.value);
+                                        setIsUrgensiOpen(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer text-left ${
+                                        isSelected
+                                            ? `${option.activeClass} font-bold`
+                                            : 'text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${option.dot}`} />
+                                        <span>{option.label}</span>
+                                    </span>
+                                    {isSelected && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+
     return (
         <AdminLayout>
             <Head title={isStaf ? "Tugas Perbaikan Saya - Biro Sarpras" : "Validasi & Penugasan Perbaikan Sarpras - Biro Sarpras"} />
@@ -410,21 +516,7 @@ export default function MaintenanceAdminIndex({
                                     )}
                                 </div>
 
-                                <div className="relative min-w-[150px]">
-                                    <select
-                                        value={urgensiFilter}
-                                        onChange={(e) => setUrgensiFilter(e.target.value)}
-                                        className="appearance-none w-full pl-9 pr-8 py-2 border border-slate-200 rounded-xl text-xs font-semibold cursor-pointer bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#006039] text-slate-700"
-                                    >
-                                        <option value="semua">Semua Urgensi</option>
-                                        <option value="rendah">Urgensi: Rendah</option>
-                                        <option value="sedang">Urgensi: Sedang</option>
-                                        <option value="tinggi">Urgensi: Tinggi</option>
-                                        <option value="darurat">Urgensi: Darurat</option>
-                                    </select>
-                                    <SlidersHorizontal className="absolute left-3 inset-y-0 my-auto w-3.5 h-3.5 text-slate-500 pointer-events-none" />
-                                    <ChevronDown className="absolute right-2.5 inset-y-0 my-auto w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                                </div>
+                                {renderUrgensiButton()}
                             </div>
 
                             {/* Table */}
@@ -467,7 +559,7 @@ export default function MaintenanceAdminIndex({
 
                                                 {/* KERUSAKAN & URGENSI */}
                                                 <td className="py-3.5 px-4">
-                                                    <div className="text-slate-800 text-xs font-medium">{item.deskripsi_kerusakan}</div>
+                                                    <div className="text-slate-800 text-xs font-semibold">{cleanKerusakanText(item.deskripsi_kerusakan)}</div>
                                                     <div className="mt-1">
                                                         <span
                                                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -824,7 +916,7 @@ export default function MaintenanceAdminIndex({
                                     </button>
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <h3 className="font-extrabold text-sm text-slate-900">
                                         Daftar Laporan Kerusakan
                                     </h3>
@@ -836,9 +928,9 @@ export default function MaintenanceAdminIndex({
                                             type="button"
                                             onClick={() => setStatusFilter('semua')}
                                             className="text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 transition cursor-pointer"
-                                            title="Klik untuk tampilkan semua"
+                                            title="Klik untuk tampilkan semua status"
                                         >
-                                            <span>Filter: {statusFilter.replace('_', ' ').toUpperCase()}</span>
+                                            <span>Status: {statusFilter.replace('_', ' ').toUpperCase()}</span>
                                             <span className="font-extrabold text-emerald-600">✕</span>
                                         </button>
                                     ) : (
@@ -846,36 +938,37 @@ export default function MaintenanceAdminIndex({
                                             Semua Status
                                         </span>
                                     )}
+                                    {urgensiFilter !== 'semua' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setUrgensiFilter('semua')}
+                                            className="text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 transition cursor-pointer"
+                                            title="Klik untuk reset filter urgensi"
+                                        >
+                                            <span>Urgensi: {urgensiFilter.toUpperCase()}</span>
+                                            <span className="font-extrabold text-amber-600">✕</span>
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <select
-                                value={urgensiFilter}
-                                onChange={(e) => setUrgensiFilter(e.target.value)}
-                                className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold cursor-pointer bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#006039]"
-                            >
-                                <option value="semua">Semua Urgensi</option>
-                                <option value="rendah">Urgensi: Rendah</option>
-                                <option value="sedang">Urgensi: Sedang</option>
-                                <option value="tinggi">Urgensi: Tinggi</option>
-                                <option value="darurat">Urgensi: Darurat</option>
-                            </select>
+                            {renderUrgensiButton()}
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                        <table className="w-full text-left text-xs border-collapse">
-                            <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                    <div className="overflow-x-auto border border-slate-200/90 rounded-2xl bg-white shadow-2xs">
+                        <table className="w-full min-w-[960px] text-left text-xs border-collapse">
+                            <thead className="bg-slate-50/90 text-slate-500 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
                                 <tr>
-                                    <th className="p-3.5">Tanggal</th>
-                                    <th className="p-3.5">PIC Ruangan (Pelapor)</th>
-                                    <th className="p-3.5">Nama Barang yang Rusak &amp; Lokasi</th>
-                                    <th className="p-3.5">Kerusakan &amp; Urgensi</th>
-                                    <th className="p-3.5">Staf Pelaksana &amp; Denda</th>
-                                    <th className="p-3.5 text-center">Status</th>
-                                    <th className="p-3.5 text-center">{isStaf ? "Aksi Staf Pelaksana" : "Aksi Admin"}</th>
+                                    <th className="py-3.5 px-4 w-[12%]">Tanggal</th>
+                                    <th className="py-3.5 px-3 w-[16%]">PIC Ruangan (Pelapor)</th>
+                                    <th className="py-3.5 px-3 w-[22%]">Nama Barang yang Rusak &amp; Lokasi</th>
+                                    <th className="py-3.5 px-3 w-[20%]">Kerusakan &amp; Urgensi</th>
+                                    <th className="py-3.5 px-3 w-[14%]">Staf Pelaksana &amp; Denda</th>
+                                    <th className="py-3.5 px-3 text-center w-[8%]">Status</th>
+                                    <th className="py-3.5 px-4 text-center w-[8%]">{isStaf ? "Aksi Staf Pelaksana" : "Aksi Admin"}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -898,47 +991,42 @@ export default function MaintenanceAdminIndex({
                                                 item.is_assigned_to_me ? 'bg-emerald-50/20' : ''
                                             }`}
                                         >
-                                            <td className={`p-3.5 whitespace-nowrap ${borderLeftClass}`}>
+                                            <td className={`py-3.5 px-4 whitespace-nowrap ${borderLeftClass}`}>
                                                 <div className="font-bold text-slate-900 text-xs">
                                                     {item.tanggal_lapor.split(' ').slice(0, 3).join(' ')}
                                                 </div>
-                                                <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                                                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                    <span>{item.tanggal_lapor.split(' ').slice(3).join(' ')}</span>
+                                                <div className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                                                    {item.tanggal_lapor.split(' ').slice(3).join(' ')} WIB
                                                 </div>
                                             </td>
 
-                                            <td className="p-3.5">
+                                            <td className="py-3.5 px-3">
                                                 <div className="font-bold text-slate-900 text-xs">{item.pelapor_nama}</div>
-                                                <div className="inline-block mt-0.5 px-2 py-0.5 bg-indigo-50 text-indigo-700 font-semibold text-[10px] rounded">
+                                                <div className="inline-block mt-0.5 px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold text-[10px] rounded-md border border-slate-200/60">
                                                     {item.pelapor_role}
                                                 </div>
                                                 {item.pelapor_ruangan && (
-                                                    <div className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[180px]">
+                                                    <div className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[170px]" title={item.pelapor_ruangan}>
                                                         {item.pelapor_ruangan}
                                                     </div>
                                                 )}
                                             </td>
 
-                                            <td className="p-3.5">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100">
-                                                        <Wrench className="w-4 h-4 text-rose-600" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-extrabold text-slate-900 text-xs">
-                                                            {item.sarpras_nama}
-                                                        </div>
-                                                        <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                                                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                                                            <span>{item.lokasi_ruang}</span>
-                                                        </div>
-                                                    </div>
+                                            {/* 3. NAMA BARANG YANG RUSAK & LOKASI - Tanpa ikon obeng */}
+                                            <td className="py-3.5 px-3">
+                                                <div className="font-extrabold text-slate-900 text-xs leading-snug">
+                                                    {item.sarpras_nama}
+                                                </div>
+                                                <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-1">
+                                                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                                    <span className="truncate max-w-[190px]" title={item.lokasi_ruang}>{item.lokasi_ruang}</span>
                                                 </div>
                                             </td>
 
-                                            <td className="p-3.5 max-w-xs">
-                                                <p className="text-slate-700 text-xs line-clamp-1">{item.deskripsi_kerusakan}</p>
+                                            <td className="py-3.5 px-3">
+                                                <p className="text-slate-800 text-xs font-semibold line-clamp-2 leading-relaxed" title={cleanKerusakanText(item.deskripsi_kerusakan)}>
+                                                    {cleanKerusakanText(item.deskripsi_kerusakan)}
+                                                </p>
                                                 <div className="mt-1 flex items-center gap-2">
                                                     <span
                                                         className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold inline-flex items-center gap-1 ${
@@ -966,34 +1054,34 @@ export default function MaintenanceAdminIndex({
                                                 </div>
                                             </td>
 
-                                            <td className="p-3.5">
+                                            {/* 5. STAF PELAKSANA & DENDA - Tanpa ikon inisial */}
+                                            <td className="py-3.5 px-3">
                                                 {item.staf_nama || item.nama_teknisi ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-7 h-7 rounded-full bg-emerald-100 text-[#006039] font-black text-xs flex items-center justify-center shrink-0">
-                                                            {(item.staf_nama || item.nama_teknisi || 'S').trim().charAt(0).toUpperCase()}
+                                                    <div className="space-y-0.5">
+                                                        <div className="font-bold text-slate-900 text-xs">
+                                                            {(item.staf_nama || item.nama_teknisi || '').split('(')[0].trim()}
                                                         </div>
-                                                        <div>
-                                                            <div className="font-bold text-slate-900 text-xs">
-                                                                {(item.staf_nama || item.nama_teknisi || '').split('(')[0].trim()}
+                                                        {item.biaya_aktual && item.biaya_aktual > 0 ? (
+                                                            <div className="text-[10px] text-emerald-700 font-bold">
+                                                                Realisasi: Rp {item.biaya_aktual.toLocaleString('id-ID')}
                                                             </div>
-                                                            {item.biaya_aktual && item.biaya_aktual > 0 ? (
-                                                                <div className="text-[10px] text-emerald-700 font-bold mt-0.5">
-                                                                    Realisasi: Rp {item.biaya_aktual.toLocaleString('id-ID')}
-                                                                </div>
-                                                            ) : item.estimasi_biaya > 0 ? (
-                                                                <div className="text-[10px] text-rose-700 font-bold mt-0.5">
-                                                                    Denda: Rp {item.estimasi_biaya.toLocaleString('id-ID')}
-                                                                </div>
-                                                            ) : null}
-                                                        </div>
+                                                        ) : item.estimasi_biaya > 0 ? (
+                                                            <div className="text-[10px] text-rose-700 font-bold">
+                                                                Denda: Rp {item.estimasi_biaya.toLocaleString('id-ID')}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-[10px] text-slate-400">
+                                                                Bebas Denda
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ) : (
-                                                    <div>
-                                                        <span className="text-[11px] text-amber-800 font-bold bg-amber-50 px-3 py-1 rounded-xl border border-amber-200/80 inline-block">
+                                                    <div className="space-y-1">
+                                                        <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200/80 inline-block">
                                                             Belum Ditugaskan
                                                         </span>
                                                         {item.estimasi_biaya > 0 && (
-                                                            <div className="text-[10px] text-rose-700 font-bold mt-1">
+                                                            <div className="text-[10px] text-rose-700 font-bold">
                                                                 Denda: Rp {item.estimasi_biaya.toLocaleString('id-ID')}
                                                             </div>
                                                         )}
@@ -1001,7 +1089,8 @@ export default function MaintenanceAdminIndex({
                                                 )}
                                             </td>
 
-                                            <td className="p-3.5 text-center whitespace-nowrap">
+                                            {/* 6. STATUS */}
+                                            <td className="py-3.5 px-3 text-center whitespace-nowrap">
                                                 {item.status === 'selesai' && (
                                                     <span className="px-3 py-1 rounded-full font-bold text-[11px] inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200">
                                                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -1034,7 +1123,8 @@ export default function MaintenanceAdminIndex({
                                                 )}
                                             </td>
 
-                                            <td className="p-3.5 text-center whitespace-nowrap">
+                                            {/* 7. AKSI ADMIN / STAF */}
+                                            <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     {/* Jika user adalah staf pelaksana */}
                                                     {isStaf ? (

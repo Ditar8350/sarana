@@ -23,13 +23,19 @@ class ProfileTest extends TestCase
 
     public function test_profile_information_can_be_updated(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'role' => 'staf',
+            'nomor_induk' => 'STF-001',
+            'no_hp' => '081234567890',
+        ]);
 
         $response = $this
             ->actingAs($user)
             ->patch('/profile', [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
+                'nomor_induk' => 'STF-002',
+                'no_hp' => '089876543210',
             ]);
 
         $response
@@ -40,18 +46,26 @@ class ProfileTest extends TestCase
 
         $this->assertSame('Test User', $user->name);
         $this->assertSame('test@example.com', $user->email);
+        $this->assertSame('STF-002', $user->nomor_induk);
+        $this->assertSame('089876543210', $user->no_hp);
         $this->assertNull($user->email_verified_at);
     }
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'role' => 'admin',
+            'nomor_induk' => 'ADM-001',
+            'no_hp' => '081234567890',
+        ]);
 
         $response = $this
             ->actingAs($user)
             ->patch('/profile', [
                 'name' => 'Test User',
                 'email' => $user->email,
+                'nomor_induk' => 'ADM-001',
+                'no_hp' => '081234567890',
             ]);
 
         $response
@@ -59,6 +73,25 @@ class ProfileTest extends TestCase
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->refresh()->email_verified_at);
+    }
+
+    public function test_nomor_induk_and_no_hp_are_required_for_all_roles(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'staf',
+            'nomor_induk' => 'STF-001',
+            'no_hp' => '081234567890',
+        ]);
+
+        $this->actingAs($user)
+            ->from('/profile')
+            ->patch('/profile', [
+                'name' => 'Test User',
+                'email' => $user->email,
+                'nomor_induk' => '',
+                'no_hp' => '',
+            ])
+            ->assertSessionHasErrors(['nomor_induk', 'no_hp']);
     }
 
     public function test_mahasiswa_can_update_biodata_akademik(): void

@@ -169,7 +169,7 @@ class PengembalianController extends Controller
                         'nama_sarpras' => $sarpras->nama,
                         'lokasi_ruang' => $sarpras->lokasi,
                         'tingkat_urgensi' => $kondisi === 'rusak_berat' ? 'darurat' : 'sedang',
-                        'deskripsi_kerusakan' => "Terdeteksi rusak saat pengembalian transaksi {$peminjaman->kode_transaksi} ({$kondisi}). Catatan: ".($request->catatan_inspeksi_admin ?? 'Butuh perbaikan teknisi.'),
+                        'deskripsi_kerusakan' => ($request->catatan_inspeksi_admin ?: 'Kerusakan fasilitas saat pengembalian')." (Pengembalian transaksi {$peminjaman->kode_transaksi}, {$kondisi})",
                         'status' => 'menunggu_tinjauan',
                         'estimasi_biaya' => $denda, // Denda kerusakan yang diberikan langsung diintegrasikan sebagai biaya perbaikan
                     ]);

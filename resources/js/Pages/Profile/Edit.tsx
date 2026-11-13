@@ -14,6 +14,8 @@ export default function Edit({
     const user = auth?.user;
     const role = user?.role as string | undefined;
     const isMahasiswa = role === 'mahasiswa';
+    const isUmum = role === 'umum';
+    const nomorIndukLabel = isMahasiswa ? 'NIM' : isUmum ? 'NIK' : 'NIP.Y';
     const roleLabel =
         role === 'admin'
             ? 'Admin Sarpras'
@@ -29,21 +31,26 @@ export default function Edit({
 
     const biodataChecklist = isMahasiswa
         ? [
+              { label: 'Nama', done: !!user?.name },
+              { label: 'Email', done: !!user?.email },
               { label: 'NIM', done: !!user?.nomor_induk },
               { label: 'No. HP', done: !!user?.no_hp },
               { label: 'Fakultas', done: !!user?.fakultas },
               { label: 'Program Studi', done: !!user?.prodi },
           ]
-        : [];
+        : [
+              { label: 'Nama', done: !!user?.name },
+              { label: 'Email', done: !!user?.email },
+              { label: nomorIndukLabel, done: !!user?.nomor_induk },
+              { label: 'No. HP', done: !!user?.no_hp },
+          ];
     const completedCount = biodataChecklist.filter((item) => item.done).length;
-    const completionPercent = biodataChecklist.length
-        ? Math.round((completedCount / biodataChecklist.length) * 100)
-        : 100;
+    const completionPercent = Math.round((completedCount / biodataChecklist.length) * 100);
 
     const infoChips = [
         user?.nomor_induk && {
             icon: <IdCard className="w-3.5 h-3.5" />,
-            text: `${isMahasiswa ? 'NIM' : 'NIP.Y'} ${user.nomor_induk}`,
+            text: `${nomorIndukLabel} ${user.nomor_induk}`,
         },
         user?.no_hp && { icon: <Phone className="w-3.5 h-3.5" />, text: user.no_hp },
         isMahasiswa && user?.prodi && { icon: <GraduationCap className="w-3.5 h-3.5" />, text: user.prodi },
@@ -95,28 +102,26 @@ export default function Edit({
                             </div>
                         </div>
 
-                        {isMahasiswa && (
-                            <div className="w-full md:w-56 shrink-0 rounded-xl bg-white/10 border border-white/15 p-3.5">
-                                <div className="flex items-center justify-between text-xs mb-2">
-                                    <span className="font-semibold text-emerald-50">Kelengkapan Biodata</span>
-                                    <span className="font-bold text-[#FCB900]">{completionPercent}%</span>
-                                </div>
-                                <div className="h-1.5 rounded-full bg-white/15 overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full bg-[#FCB900] transition-all"
-                                        style={{ width: `${completionPercent}%` }}
-                                    />
-                                </div>
-                                <p className="mt-2 text-[11px] text-emerald-100/80">
-                                    {completionPercent === 100
-                                        ? 'Biodata lengkap, siap untuk peminjaman.'
-                                        : `Belum diisi: ${biodataChecklist
-                                              .filter((item) => !item.done)
-                                              .map((item) => item.label)
-                                              .join(', ')}`}
-                                </p>
+                        <div className="w-full md:w-60 shrink-0 rounded-xl bg-white/10 border border-white/15 p-3.5">
+                            <div className="flex items-center justify-between text-xs mb-2">
+                                <span className="font-semibold text-emerald-50">Kelengkapan Profil</span>
+                                <span className="font-bold text-[#FCB900]">{completionPercent}%</span>
                             </div>
-                        )}
+                            <div className="h-1.5 rounded-full bg-white/15 overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-[#FCB900] transition-all"
+                                    style={{ width: `${completionPercent}%` }}
+                                />
+                            </div>
+                            <p className="mt-2 text-[11px] text-emerald-100/80">
+                                {completionPercent === 100
+                                    ? 'Profil & biodata lengkap di sistem.'
+                                    : `Wajib diisi: ${biodataChecklist
+                                          .filter((item) => !item.done)
+                                          .map((item) => item.label)
+                                          .join(', ')}`}
+                            </p>
+                        </div>
                     </div>
                 </div>
 

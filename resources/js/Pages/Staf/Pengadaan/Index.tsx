@@ -1132,232 +1132,272 @@ export default function PengadaanIndex({
                             })}
                         </div>
 
-                        {/* Wadah Utama: Daftar Pengadaan */}
-                        <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
-                            <div className="flex items-center gap-2.5 pb-1">
-                                <h2 className="text-base font-bold text-slate-900">Daftar Pengadaan</h2>
-                                <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-[#006039] border border-emerald-200">
-                                    {tabFilter === 'semua' && 'Semua Data'}
-                                    {tabFilter === 'diajukan' && 'Menunggu Validasi'}
-                                    {tabFilter === 'disetujui' && 'Disetujui Belanja'}
-                                    {tabFilter === 'selesai' && 'Selesai Dibeli'}
-                                    {tabFilter === 'ditolak' && 'Ditolak'}
+                        {/* Wadah Utama: Daftar Pengadaan (Tabel Lengkap & Terpisah Kolomnya) */}
+                        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-4">
+                            <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                                <h2 className="text-base font-extrabold text-slate-900">Daftar Pengadaan</h2>
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-[#006039] border border-emerald-200 shadow-2xs">
+                                    {tabFilter === 'semua' && `Semua Data (${filtered.length})`}
+                                    {tabFilter === 'diajukan' && `Menunggu Validasi (${filtered.length})`}
+                                    {tabFilter === 'disetujui' && `Disetujui Belanja (${filtered.length})`}
+                                    {tabFilter === 'selesai' && `Selesai Dibeli (${filtered.length})`}
+                                    {tabFilter === 'ditolak' && `Ditolak (${filtered.length})`}
                                 </span>
                             </div>
 
-                            {/* Daftar Kartu Baris Pengadaan */}
-                            <div className="space-y-3">
-                                {filtered.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/90 hover:border-slate-300 shadow-2xs transition grid grid-cols-1 md:grid-cols-12 gap-4 items-center"
-                                    >
-                                        {/* 1. Bukti Nota */}
-                                        <div className="md:col-span-2 flex flex-col items-start gap-1">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                                Bukti Nota
-                                            </span>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                {item.foto_bukti_nota ? (
-                                                    item.foto_bukti_nota.endsWith('.pdf') ? (
-                                                        <a
-                                                            href={item.foto_bukti_nota}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="w-14 h-14 rounded-xl bg-blue-50 border border-blue-200 flex flex-col items-center justify-center text-blue-700 hover:bg-blue-100 transition shadow-2xs"
-                                                        >
-                                                            <FileText className="w-6 h-6 mb-0.5" />
-                                                            <span className="text-[9px] font-bold">PDF</span>
-                                                        </a>
-                                                    ) : (
-                                                        <>
-                                                            <img
-                                                                src={item.foto_bukti_nota}
-                                                                alt="Nota"
-                                                                onClick={() => setPreviewImage({ url: item.foto_bukti_nota!, title: `Nota - ${item.nama_barang}` })}
-                                                                className="w-14 h-14 object-cover rounded-xl border border-slate-200 shadow-2xs cursor-pointer hover:opacity-85 transition shrink-0"
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setPreviewImage({ url: item.foto_bukti_nota!, title: `Nota - ${item.nama_barang}` })}
-                                                                className="w-8 h-8 rounded-full bg-emerald-50 hover:bg-emerald-100 text-[#006039] flex items-center justify-center transition cursor-pointer shrink-0 border border-emerald-200/60"
-                                                                title="Lihat Foto Nota"
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                            </button>
-                                                        </>
-                                                    )
-                                                ) : (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center justify-center p-1.5 shadow-inner">
-                                                            <div className="w-full h-1.5 bg-slate-200 rounded-full mb-1"></div>
-                                                            <div className="w-3/4 h-1 bg-slate-200 rounded-full mb-1"></div>
-                                                            <div className="w-1/2 h-1 bg-slate-200 rounded-full mb-1.5"></div>
-                                                            <div className="w-full h-2.5 bg-emerald-100/60 rounded flex items-center justify-center">
-                                                                <span className="text-[7px] text-[#006039] font-bold">NOTA</span>
+                            {/* Tabel Data Terstruktur: Memisahkan Nama Barang, Kategori, Jumlah, Deskripsi, Status, dan Aksi */}
+                            <div className="overflow-x-auto border border-slate-200/90 rounded-2xl shadow-2xs">
+                                <table className="w-full min-w-[1150px] text-left text-xs border-collapse">
+                                    <thead className="bg-slate-50/80 text-slate-500 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200/80">
+                                        <tr>
+                                            <th className="py-3.5 pl-4 pr-2 w-[6%] text-center whitespace-nowrap">Bukti Nota</th>
+                                            <th className="py-3.5 px-3 w-[11%] whitespace-nowrap">Kode &amp; Tanggal</th>
+                                            <th className="py-3.5 px-3 w-[15%] min-w-[150px]">Nama Barang</th>
+                                            <th className="py-3.5 px-3 w-[12%] min-w-[130px] whitespace-nowrap">Kategori</th>
+                                            <th className="py-3.5 px-2 text-center w-[7%] whitespace-nowrap">Jumlah</th>
+                                            <th className="py-3.5 px-3 w-[16%] min-w-[160px]">Deskripsi / Alasan</th>
+                                            <th className="py-3.5 px-3 w-[14%] min-w-[150px]">Pengusul &amp; Ruangan</th>
+                                            <th className="py-3.5 px-3 w-[9%] whitespace-nowrap">Realisasi Biaya</th>
+                                            <th className="py-3.5 px-3 text-center w-[10%] min-w-[120px] whitespace-nowrap">Status</th>
+                                            <th className="py-3.5 pr-4 pl-2 text-center w-[11%] min-w-[140px] whitespace-nowrap">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filtered.map((item) => {
+                                            const cleanKode = item.kode_pengadaan.startsWith('#')
+                                                ? item.kode_pengadaan
+                                                : `#${item.kode_pengadaan}`;
+
+                                            return (
+                                                <tr key={item.id} className="hover:bg-slate-50/70 transition">
+                                                    {/* 1. Bukti Nota */}
+                                                    <td className="py-3 pl-4 pr-2 text-center whitespace-nowrap">
+                                                        {item.foto_bukti_nota ? (
+                                                            item.foto_bukti_nota.endsWith('.pdf') ? (
+                                                                <a
+                                                                    href={item.foto_bukti_nota}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200 inline-flex flex-col items-center justify-center text-blue-700 hover:bg-blue-100 transition shadow-2xs"
+                                                                    title="Buka Nota PDF"
+                                                                >
+                                                                    <FileText className="w-5 h-5 mb-0.5" />
+                                                                    <span className="text-[8px] font-bold">PDF</span>
+                                                                </a>
+                                                            ) : (
+                                                                <div className="relative inline-block group">
+                                                                    <img
+                                                                        src={item.foto_bukti_nota}
+                                                                        alt="Nota"
+                                                                        onClick={() =>
+                                                                            setPreviewImage({
+                                                                                url: item.foto_bukti_nota!,
+                                                                                title: `Nota - ${item.nama_barang}`,
+                                                                            })
+                                                                        }
+                                                                        className="w-12 h-12 object-cover rounded-xl border border-slate-200 shadow-2xs cursor-pointer group-hover:opacity-85 transition"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            setPreviewImage({
+                                                                                url: item.foto_bukti_nota!,
+                                                                                title: `Nota - ${item.nama_barang}`,
+                                                                            })
+                                                                        }
+                                                                        className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs cursor-pointer hover:bg-emerald-700 transition"
+                                                                        title="Lihat Nota"
+                                                                    >
+                                                                        <Eye className="w-3 h-3" />
+                                                                    </button>
+                                                                </div>
+                                                            )
+                                                        ) : (
+                                                            <div className="w-12 h-12 mx-auto rounded-xl border border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center p-1 text-slate-300">
+                                                                <Receipt className="w-4 h-4 mb-0.5 text-slate-400" />
+                                                                <span className="text-[7px] font-bold uppercase tracking-wider text-slate-400">
+                                                                    Nota
+                                                                </span>
                                                             </div>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 2. Kode & Tanggal */}
+                                                    <td className="py-3 px-3 font-bold text-slate-800 whitespace-nowrap">
+                                                        <div className="font-mono text-xs font-extrabold text-[#006039]">
+                                                            {cleanKode}
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                                        <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                            {item.tanggal_dibuat}
+                                                        </div>
+                                                    </td>
 
-                                        {/* 2. Kode & Barang */}
-                                        <div className="md:col-span-3 flex flex-col justify-center">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                                Kode &amp; Barang
-                                            </span>
-                                            <div className="mt-1">
-                                                <span className="font-mono font-bold text-[11px] text-slate-800">
-                                                    #{item.kode_pengadaan}
-                                                </span>
-                                                <h3 className="font-black text-sm text-slate-900 mt-0.5">
-                                                    {item.nama_barang}
-                                                </h3>
-                                                <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                                                    {item.jumlah} {item.satuan} • {item.kategori}
-                                                </p>
-                                                {item.alasan_pengadaan && (
-                                                    <p className="text-xs text-slate-600 italic mt-0.5">
-                                                        "{item.alasan_pengadaan}"
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
+                                                    {/* 3. Nama Barang */}
+                                                    <td className="py-3 px-3">
+                                                        <div className="font-extrabold text-slate-900 text-xs leading-snug">
+                                                            {item.nama_barang}
+                                                        </div>
+                                                    </td>
 
-                                        {/* 3. Pengusul & Ruangan */}
-                                        <div className="md:col-span-3 flex flex-col justify-center">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                                Pengusul &amp; Ruangan
-                                            </span>
-                                            <div className="mt-1">
-                                                <div className="font-bold text-xs text-slate-900">
-                                                    {item.pelapor_nama}
-                                                </div>
-                                                <div className="text-[11px] text-slate-500">
-                                                    {item.pelapor_role}
-                                                </div>
-                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 mt-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-[11px] font-semibold shadow-2xs">
-                                                    <Building2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                                                    <span>{item.ruangan_tujuan}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* 4. Realisasi Biaya */}
-                                        <div className="md:col-span-2 flex flex-col justify-center">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                                Realisasi Biaya
-                                            </span>
-                                            <div className="mt-1">
-                                                <div className="font-black text-base text-slate-900">
-                                                    Rp {(item.total_biaya || 0).toLocaleString('id-ID')}
-                                                </div>
-                                                <div className="text-[11px] text-slate-500 mt-0.5">
-                                                    Staf: {item.staf_nama || '-'}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* 5. Status & Aksi Admin */}
-                                        <div className="md:col-span-2 flex flex-col items-start md:items-end justify-center gap-2">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                                Status &amp; Aksi Admin
-                                            </span>
-                                            <div>
-                                                {item.status === 'selesai' && (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full font-bold text-xs border border-emerald-200">
-                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                                        <span>Selesai Dibeli</span>
-                                                    </span>
-                                                )}
-                                                {item.status === 'diajukan' && (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-800 rounded-full font-bold text-xs border border-amber-200">
-                                                        <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                                        <span>Menunggu Validasi</span>
-                                                    </span>
-                                                )}
-                                                {item.status === 'disetujui' && (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-800 rounded-full font-bold text-xs border border-blue-200">
-                                                        <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
-                                                        <span>Disetujui Belanja</span>
-                                                    </span>
-                                                )}
-                                                {item.status === 'ditolak' && (
-                                                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-rose-50 text-rose-800 rounded-full font-bold text-xs border border-rose-200">
-                                                        <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                                                        <span>Ditolak</span>
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Action Button */}
-                                            <div className="mt-0.5">
-                                                {item.status === 'selesai' && (
-                                                    item.is_converted_to_sarpras ? (
-                                                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-lg font-bold text-xs border border-emerald-200">
-                                                            <CheckCircle2 className="w-3.5 h-3.5 text-[#006039]" />
-                                                            <span>Masuk Inventaris</span>
+                                                    {/* 4. Kategori */}
+                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                        <span
+                                                            className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold border ${getBadgeKategoriStyle(
+                                                                item.kategori
+                                                            )}`}
+                                                        >
+                                                            {item.kategori}
                                                         </span>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleInsertToSarpras(item.id)}
-                                                            className="px-3.5 py-2 bg-[#006039] hover:bg-[#0f4c3a] text-white rounded-xl font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-                                                        >
-                                                            <Plus className="w-3.5 h-3.5" />
-                                                            <span>+ Masuk Stok Sarpras</span>
-                                                        </button>
-                                                    )
-                                                )}
+                                                    </td>
 
-                                                {item.status === 'diajukan' && (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setItemToValidate(item);
-                                                                setValidationAction('disetujui');
-                                                                setCatatanAdmin('');
-                                                                setSelectedStafId(stafUsers[0]?.id ? String(stafUsers[0].id) : '');
-                                                            }}
-                                                            className="px-3 py-1.5 bg-[#006039] hover:bg-[#0f4c3a] text-white rounded-xl font-bold text-xs shadow-2xs transition cursor-pointer flex items-center gap-1"
-                                                        >
-                                                            <Check className="w-3.5 h-3.5" />
-                                                            <span>Setujui</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setItemToValidate(item);
-                                                                setValidationAction('ditolak');
-                                                                setCatatanAdmin('');
-                                                                setSelectedStafId('');
-                                                            }}
-                                                            className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold text-xs border border-rose-200 transition cursor-pointer flex items-center gap-1"
-                                                        >
-                                                            <X className="w-3.5 h-3.5" />
-                                                            <span>Tolak</span>
-                                                        </button>
-                                                    </div>
-                                                )}
+                                                    {/* 5. Jumlah */}
+                                                    <td className="py-3 px-2 text-center whitespace-nowrap">
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80 font-extrabold text-xs">
+                                                            {item.jumlah} {item.satuan || 'Unit'}
+                                                        </span>
+                                                    </td>
 
-                                                {item.status === 'disetujui' && (
-                                                    <span className="text-slate-400 text-xs italic">Sedang dibelanjakan staf</span>
-                                                )}
-                                                {item.status === 'ditolak' && (
-                                                    <span className="text-slate-400 text-xs italic">Selesai (Ditolak)</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                                    {/* 6. Deskripsi / Alasan */}
+                                                    <td className="py-3 px-3">
+                                                        <div
+                                                            className="text-slate-700 text-xs line-clamp-3 leading-relaxed"
+                                                            title={item.alasan_pengadaan || '-'}
+                                                        >
+                                                            {item.alasan_pengadaan || '-'}
+                                                        </div>
+                                                    </td>
 
-                                {filtered.length === 0 && (
-                                    <div className="p-12 text-center text-slate-400 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
-                                        Tidak ada data pengadaan yang sesuai dengan filter atau kata kunci.
-                                    </div>
-                                )}
+                                                    {/* 7. Pengusul & Ruangan */}
+                                                    <td className="py-3 px-3">
+                                                        <div className="font-bold text-slate-900 text-xs leading-tight">
+                                                            {item.pelapor_nama}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                                            {item.pelapor_role}
+                                                        </div>
+                                                        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 mt-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700 text-[10px] font-semibold max-w-full">
+                                                            <Building2 className="w-3 h-3 text-[#006039] shrink-0" />
+                                                            <span className="truncate">{item.ruangan_tujuan}</span>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 8. Realisasi Biaya */}
+                                                    <td className="py-3 px-3 whitespace-nowrap">
+                                                        <div className="font-extrabold text-slate-900 text-xs">
+                                                            Rp {(item.total_biaya || 0).toLocaleString('id-ID')}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">
+                                                            Staf: {item.staf_nama || '-'}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* 9. Status */}
+                                                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                                                        {item.status === 'selesai' && (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-full font-bold text-[11px] border border-emerald-200 shadow-2xs">
+                                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                                <span>Selesai Dibeli</span>
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'diajukan' && (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 rounded-full font-bold text-[11px] border border-amber-200 shadow-2xs">
+                                                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                                                <span>Menunggu Validasi</span>
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'disetujui' && (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-800 rounded-full font-bold text-[11px] border border-blue-200 shadow-2xs">
+                                                                <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
+                                                                <span>Disetujui Belanja</span>
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'ditolak' && (
+                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-800 rounded-full font-bold text-[11px] border border-rose-200 shadow-2xs">
+                                                                <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                                                <span>Ditolak</span>
+                                                            </span>
+                                                        )}
+                                                    </td>
+
+                                                    {/* 10. Aksi Admin */}
+                                                    <td className="py-3 pr-4 pl-2 text-center whitespace-nowrap">
+                                                        {item.status === 'diajukan' && (
+                                                            <div className="inline-flex items-center justify-center gap-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setItemToValidate(item);
+                                                                        setValidationAction('disetujui');
+                                                                        setCatatanAdmin('');
+                                                                        setSelectedStafId(
+                                                                            stafUsers[0]?.id ? String(stafUsers[0].id) : ''
+                                                                        );
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#006039] hover:bg-[#004e2e] text-white rounded-xl text-xs font-bold shadow-2xs transition cursor-pointer"
+                                                                    title="Setujui Usulan Pengadaan"
+                                                                >
+                                                                    <Check className="w-3.5 h-3.5" />
+                                                                    <span>Setujui</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setItemToValidate(item);
+                                                                        setValidationAction('ditolak');
+                                                                        setCatatanAdmin('');
+                                                                        setSelectedStafId('');
+                                                                    }}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold border border-rose-200 transition cursor-pointer"
+                                                                    title="Tolak Usulan Pengadaan"
+                                                                >
+                                                                    <X className="w-3.5 h-3.5" />
+                                                                    <span>Tolak</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {item.status === 'selesai' && (
+                                                            item.is_converted_to_sarpras ? (
+                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-lg font-bold text-[11px] border border-emerald-200">
+                                                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#006039]" />
+                                                                    <span>Masuk Inventaris</span>
+                                                                </span>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleInsertToSarpras(item.id)}
+                                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#006039] hover:bg-[#004e2e] text-white rounded-xl font-bold text-xs shadow-2xs transition cursor-pointer"
+                                                                    title="Tambahkan Barang ke Stok Inventaris Sarpras"
+                                                                >
+                                                                    <Plus className="w-3.5 h-3.5" />
+                                                                    <span>Masuk Stok Sarpras</span>
+                                                                </button>
+                                                            )
+                                                        )}
+
+                                                        {item.status === 'disetujui' && (
+                                                            <span className="text-slate-400 text-xs italic font-medium">
+                                                                Sedang dibeli staf
+                                                            </span>
+                                                        )}
+                                                        {item.status === 'ditolak' && (
+                                                            <span className="text-slate-400 text-xs italic font-medium">
+                                                                Selesai (Ditolak)
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        {filtered.length === 0 && (
+                                            <tr>
+                                                <td colSpan={10} className="p-12 text-center text-slate-400 font-medium">
+                                                    Tidak ada data pengadaan yang sesuai dengan filter atau kata kunci pencarian.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

@@ -29,7 +29,8 @@ class MaintenanceController extends Controller
             ->latest()
             ->get()
             ->map(function (MaintenanceLaporan $l) use ($isStaf, $user): array {
-                $isFromPengembalian = str_contains((string) $l->deskripsi_kerusakan, 'Terdeteksi rusak saat pengembalian');
+                $isFromPengembalian = str_contains((string) $l->deskripsi_kerusakan, 'pengembalian')
+                    || str_contains((string) $l->deskripsi_kerusakan, 'Terdeteksi rusak saat');
                 $dendaNominal = (float) $l->estimasi_biaya;
 
                 // Jika berasal dari pengembalian barang dan nominal masih 0, sinkronkan dengan denda pengembalian

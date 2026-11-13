@@ -1792,18 +1792,6 @@ export default function PeminjamanIndex({ peminjamanList = [], stafUsers = [], c
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        {!isStaf && approveModalItem.status !== 'disetujui' && (
-                                            <button
-                                                type="button"
-                                                disabled={isProcessing}
-                                                onClick={handleApproveOnly}
-                                                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer disabled:opacity-60 text-center"
-                                                title="Setujui permohonan terlebih dahulu, staf bisa ditunjuk nanti"
-                                            >
-                                                Setujui Saja
-                                            </button>
-                                        )}
-
                                         <button
                                             type="submit"
                                             disabled={isProcessing}

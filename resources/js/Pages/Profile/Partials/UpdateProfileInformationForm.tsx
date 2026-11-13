@@ -64,6 +64,7 @@ function Field({
     icon,
     error,
     hint,
+    required = false,
     children,
 }: {
     label: string;
@@ -71,12 +72,13 @@ function Field({
     icon: ReactNode;
     error?: string | null;
     hint?: string;
+    required?: boolean;
     children: ReactNode;
 }) {
     return (
         <div>
             <label htmlFor={htmlFor} className="block text-xs font-semibold text-slate-700 mb-1.5">
-                {label}
+                {label} {required && <span className="text-rose-500 font-extrabold">*</span>}
             </label>
             <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -103,8 +105,11 @@ export default function UpdateProfileInformation({
     className?: string;
 }) {
     const user = usePage().props.auth.user as any;
-    const isMahasiswa = (user?.role as string) === 'mahasiswa';
-    const [prodiClientError, setProdiClientError] = useState<string | null>(null);
+    const role = (user?.role as string) || '';
+    const isMahasiswa = role === 'mahasiswa';
+    const isUmum = role === 'umum';
+    const nomorIndukLabel = isMahasiswa ? 'NIM' : isUmum ? 'NIK / No. KTP' : 'NIP.Y';
+    const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
 
     const { data, setData, patch, errors, processing, recentlySuccessful } = useForm({
         name: user?.name || '',
@@ -121,20 +126,47 @@ export default function UpdateProfileInformation({
     }, [data.fakultas]);
 
     const handleFakultasChange = (fakultasValue: string) => {
-        // Program Studi tidak diisi otomatis — mahasiswa memilih sendiri agar tidak salah
-        setProdiClientError(null);
+        setClientErrors((prev) => {
+            const next = { ...prev };
+            delete next.fakultas;
+            delete next.prodi;
+            return next;
+        });
         setData((prev) => ({ ...prev, fakultas: fakultasValue, prodi: '' }));
     };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        setProdiClientError(null);
+        const newClientErrors: Record<string, string> = {};
 
-        if (isMahasiswa && data.fakultas && !data.prodi) {
-            setProdiClientError('Silakan pilih Program Studi Anda.');
+        if (!data.name.trim()) {
+            newClientErrors.name = 'Nama lengkap wajib diisi.';
+        }
+        if (!data.email.trim()) {
+            newClientErrors.email = 'Alamat email wajib diisi.';
+        }
+        if (!data.nomor_induk.trim()) {
+            newClientErrors.nomor_induk = `${nomorIndukLabel} wajib diisi.`;
+        }
+        if (!data.no_hp.trim()) {
+            newClientErrors.no_hp = 'Nomor HP / WhatsApp wajib diisi.';
+        }
+
+        if (isMahasiswa) {
+            if (!data.fakultas) {
+                newClientErrors.fakultas = 'Silakan pilih Fakultas terlebih dahulu.';
+            }
+            if (!data.prodi) {
+                newClientErrors.prodi = 'Silakan pilih Program Studi terlebih dahulu.';
+            }
+        }
+
+        if (Object.keys(newClientErrors).length > 0) {
+            setClientErrors(newClientErrors);
             return;
         }
 
+        setClientErrors({});
         patch(route('profile.update'), { preserveScroll: true });
     };
 
@@ -143,28 +175,59 @@ export default function UpdateProfileInformation({
             <form onSubmit={submit} className="space-y-6">
                 {/* Data Akun */}
                 <div className="space-y-4">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Data Akun</p>
+                    <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Data Akun</p>
+                        <span className="text-[10px] font-medium text-slate-400">
+                            Semua kolom bertanda <span className="text-rose-500 font-bold">*</span> wajib diisi
+                        </span>
+                    </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Field label="Nama Lengkap" htmlFor="name" icon={<UserIcon className="w-4 h-4" />} error={errors.name}>
+                        <Field
+                            label="Nama Lengkap"
+                            htmlFor="name"
+                            required
+                            icon={<UserIcon className="w-4 h-4" />}
+                            error={clientErrors.name || errors.name}
+                        >
                             <input
                                 id="name"
                                 className={inputClass}
                                 value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
+                                onChange={(e) => {
+                                    setClientErrors((prev) => {
+                                        const next = { ...prev };
+                                        delete next.name;
+                                        return next;
+                                    });
+                                    setData('name', e.target.value);
+                                }}
                                 required
                                 autoComplete="name"
                                 placeholder="Nama lengkap Anda"
                             />
                         </Field>
 
-                        <Field label="Alamat Email" htmlFor="email" icon={<Mail className="w-4 h-4" />} error={errors.email}>
+                        <Field
+                            label="Alamat Email"
+                            htmlFor="email"
+                            required
+                            icon={<Mail className="w-4 h-4" />}
+                            error={clientErrors.email || errors.email}
+                        >
                             <input
                                 id="email"
                                 type="email"
                                 className={inputClass}
                                 value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
+                                onChange={(e) => {
+                                    setClientErrors((prev) => {
+                                        const next = { ...prev };
+                                        delete next.email;
+                                        return next;
+                                    });
+                                    setData('email', e.target.value);
+                                }}
                                 required
                                 autoComplete="username"
                                 placeholder="contoh@unuha.ac.id"
@@ -172,28 +235,57 @@ export default function UpdateProfileInformation({
                         </Field>
 
                         <Field
-                            label={isMahasiswa ? 'NIM' : 'NIP.Y'}
+                            label={nomorIndukLabel}
                             htmlFor="nomor_induk"
+                            required
                             icon={<IdCard className="w-4 h-4" />}
-                            error={errors.nomor_induk}
+                            error={clientErrors.nomor_induk || errors.nomor_induk}
                         >
                             <input
                                 id="nomor_induk"
+                                required
                                 className={`${inputClass} font-mono tracking-wide`}
                                 value={data.nomor_induk}
-                                onChange={(e) => setData('nomor_induk', e.target.value)}
-                                placeholder={isMahasiswa ? 'Contoh: 2355202065' : 'Contoh: STF-2026-001'}
+                                onChange={(e) => {
+                                    setClientErrors((prev) => {
+                                        const next = { ...prev };
+                                        delete next.nomor_induk;
+                                        return next;
+                                    });
+                                    setData('nomor_induk', e.target.value);
+                                }}
+                                placeholder={
+                                    isMahasiswa
+                                        ? 'Contoh: 2355202065'
+                                        : isUmum
+                                          ? 'Contoh: 1608xxxxxxxxxxxx'
+                                          : 'Contoh: STF-2026-001'
+                                }
                             />
                         </Field>
 
-                        <Field label="No. HP / WhatsApp" htmlFor="no_hp" icon={<Phone className="w-4 h-4" />} error={errors.no_hp}>
+                        <Field
+                            label="No. HP / WhatsApp"
+                            htmlFor="no_hp"
+                            required
+                            icon={<Phone className="w-4 h-4" />}
+                            error={clientErrors.no_hp || errors.no_hp}
+                        >
                             <input
                                 id="no_hp"
                                 type="tel"
+                                required
                                 inputMode="numeric"
                                 className={inputClass}
                                 value={data.no_hp}
-                                onChange={(e) => setData('no_hp', e.target.value)}
+                                onChange={(e) => {
+                                    setClientErrors((prev) => {
+                                        const next = { ...prev };
+                                        delete next.no_hp;
+                                        return next;
+                                    });
+                                    setData('no_hp', e.target.value);
+                                }}
                                 placeholder="08xxxxxxxxxx"
                             />
                         </Field>
@@ -205,9 +297,13 @@ export default function UpdateProfileInformation({
                     <div className="space-y-4 pt-5 border-t border-slate-100">
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Biodata Akademik</p>
-                            {data.fakultas && data.prodi && (
+                            {data.fakultas && data.prodi ? (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                                     <CheckCircle2 className="w-3 h-3" /> Lengkap
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                                    Wajib Dilengkapi
                                 </span>
                             )}
                         </div>
@@ -216,16 +312,18 @@ export default function UpdateProfileInformation({
                             <Field
                                 label="1. Fakultas / Pascasarjana"
                                 htmlFor="fakultas"
+                                required
                                 icon={<GraduationCap className="w-4 h-4" />}
-                                error={errors.fakultas}
+                                error={clientErrors.fakultas || errors.fakultas}
                             >
                                 <select
                                     id="fakultas"
+                                    required
                                     value={data.fakultas}
                                     onChange={(e) => handleFakultasChange(e.target.value)}
                                     className={selectClass}
                                 >
-                                    <option value="">Pilih fakultas</option>
+                                    <option value="">-- Pilih Fakultas / Pascasarjana --</option>
                                     {FAKULTAS_PRODI_UNUHA.map((item) => (
                                         <option key={item.fakultas} value={item.fakultas}>
                                             {item.fakultas}
@@ -238,23 +336,29 @@ export default function UpdateProfileInformation({
                             <Field
                                 label="2. Program Studi"
                                 htmlFor="prodi"
+                                required
                                 icon={<BookOpen className="w-4 h-4" />}
-                                error={prodiClientError || errors.prodi}
+                                error={clientErrors.prodi || errors.prodi}
                                 hint={!data.fakultas ? 'Pilih fakultas terlebih dahulu.' : undefined}
                             >
                                 <select
                                     id="prodi"
+                                    required
                                     value={data.prodi}
                                     onChange={(e) => {
-                                        setProdiClientError(null);
+                                        setClientErrors((prev) => {
+                                            const next = { ...prev };
+                                            delete next.prodi;
+                                            return next;
+                                        });
                                         setData('prodi', e.target.value);
                                     }}
                                     disabled={!data.fakultas}
                                     className={`${selectClass} ${
-                                        prodiClientError ? 'border-rose-300 ring-2 ring-rose-100' : ''
+                                        clientErrors.prodi || errors.prodi ? 'border-rose-300 ring-2 ring-rose-100' : ''
                                     }`}
                                 >
-                                    <option value="">{data.fakultas ? 'Pilih program studi' : '—'}</option>
+                                    <option value="">{data.fakultas ? '-- Pilih Program Studi --' : '—'}</option>
                                     {activeProdiOptions.map((prodiName) => (
                                         <option key={prodiName} value={prodiName}>
                                             {prodiName}

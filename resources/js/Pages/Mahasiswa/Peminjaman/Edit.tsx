@@ -115,7 +115,9 @@ export default function PeminjamanEdit({
     sarprasTersedia = [],
 }: Props) {
     const { auth } = usePage().props as any;
-    const isUmum = !auth?.user?.nomor_induk || (auth?.user?.role as string) === 'umum';
+    const userRole = (auth?.user?.role as string) || '';
+    const isUmum = !auth?.user?.nomor_induk || userRole === 'umum';
+    const isPicRuangan = userRole === 'staf_ruangan' || userRole === 'kepala_bagian' || userRole === 'staf';
 
     const formatDateForInput = (d: string) => {
         if (!d) return '';
@@ -128,6 +130,14 @@ export default function PeminjamanEdit({
 
     const [ktmFileName, setKtmFileName] = useState<string | null>(null);
     const [clientError, setClientError] = useState<string | null>(null);
+
+    const todayDateString = useMemo(() => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }, []);
 
     // Parse fakultas & prodi dari instansi_prodi jika ada format "Prodi - Fakultas"
     const parsedFakultasProdi = useMemo(() => {
@@ -251,7 +261,11 @@ export default function PeminjamanEdit({
             return;
         }
         if (!isUmum && !data.nim_nip.trim()) {
-            setClientError('Nomor Induk Mahasiswa (NIM) wajib diisi.');
+            setClientError(
+                isPicRuangan
+                    ? 'NIP.Y wajib diisi.'
+                    : 'Nomor Induk Mahasiswa (NIM) wajib diisi.'
+            );
             return;
         }
         if (!data.instansi_prodi.trim()) {
@@ -270,7 +284,11 @@ export default function PeminjamanEdit({
             setClientError('Tanggal mulai dan rencana pengembalian wajib diisi.');
             return;
         }
-        if (new Date(data.tanggal_kembali_rencana) < new Date(data.tanggal_mulai)) {
+        if (data.tanggal_mulai < todayDateString) {
+            setClientError('Tanggal mulai peminjaman tidak boleh sebelum tanggal hari ini.');
+            return;
+        }
+        if (data.tanggal_kembali_rencana < data.tanggal_mulai) {
             setClientError('Tanggal selesai peminjaman tidak boleh mendahului tanggal mulai.');
             return;
         }
@@ -386,13 +404,13 @@ export default function PeminjamanEdit({
                             {!isUmum ? (
                                 <div>
                                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                                        NIM (Nomor Induk Mahasiswa) <span className="text-rose-500">*</span>
+                                        {isPicRuangan ? 'NIP.Y' : 'NIM (Nomor Induk Mahasiswa)'} <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
                                         value={data.nim_nip}
                                         onChange={(e) => setData('nim_nip', e.target.value)}
-                                        placeholder="Contoh: 2355202065"
+                                        placeholder={isPicRuangan ? 'Contoh: KPB-2026-001' : 'Contoh: 2355202065'}
                                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-[#006039] focus:ring-1 focus:ring-[#006039] outline-hidden transition font-mono"
                                     />
                                     {errors.nim_nip && (
@@ -667,8 +685,23 @@ export default function PeminjamanEdit({
                                 </label>
                                 <input
                                     type="date"
+                                    min={todayDateString}
                                     value={data.tanggal_mulai}
-                                    onChange={(e) => setData('tanggal_mulai', e.target.value)}
+                                    onChange={(e) => {
+                                        const newStart = e.target.value;
+                                        setData((prev) => {
+                                            const shouldAdjustEnd =
+                                                prev.tanggal_kembali_rencana &&
+                                                prev.tanggal_kembali_rencana < newStart;
+                                            return {
+                                                ...prev,
+                                                tanggal_mulai: newStart,
+                                                tanggal_kembali_rencana: shouldAdjustEnd
+                                                    ? newStart
+                                                    : prev.tanggal_kembali_rencana,
+                                            };
+                                        });
+                                    }}
                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-[#006039] focus:ring-1 focus:ring-[#006039] outline-hidden transition"
                                 />
                                 {errors.tanggal_mulai && (
@@ -682,6 +715,7 @@ export default function PeminjamanEdit({
                                 </label>
                                 <input
                                     type="date"
+                                    min={data.tanggal_mulai || todayDateString}
                                     value={data.tanggal_kembali_rencana}
                                     onChange={(e) => setData('tanggal_kembali_rencana', e.target.value)}
                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-[#006039] focus:ring-1 focus:ring-[#006039] outline-hidden transition"

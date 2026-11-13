@@ -28,6 +28,7 @@ import {
     MessageSquare,
     ZoomIn,
     Sparkles,
+    Copy,
 } from 'lucide-react';
 
 interface BorrowedItem {
@@ -104,15 +105,34 @@ export default function PengembalianIndex({
     // Modal Inspeksi Fisik
     const [inspeksiItem, setInspeksiItem] = useState<PengembalianItem | null>(null);
     const [kondisiMap, setKondisiMap] = useState<Record<number, string>>({});
-    const [biayaDenda, setBiayaDenda] = useState<number>(0);
+    const [biayaDenda, setBiayaDenda] = useState<number | ''>('');
     const [nomorRekening, setNomorRekening] = useState('BSI (Bank Syariah Indonesia) No. Rek: 7182938475 a.n. Biro Sarpras Universitas Nurul Huda');
-    const [catatanInspeksi, setCatatanInspeksi] = useState('Barang kembali lengkap dalam kondisi baik.');
+    const [catatanInspeksi, setCatatanInspeksi] = useState('Barang kembali lengkap dan dalam kondisi baik.');
     const [buatTiketMaintenance, setBuatTiketMaintenance] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [copiedRekening, setCopiedRekening] = useState(false);
+    const [isEditingRekening, setIsEditingRekening] = useState(false);
 
     const hasKerusakan = Object.values(kondisiMap).some((val) =>
         ['rusak_ringan', 'rusak_berat', 'hilang'].includes(val)
     );
+
+    const isFormDendaValid = !hasKerusakan || (
+        biayaDenda !== '' &&
+        Number(biayaDenda) > 0 &&
+        catatanInspeksi.trim().length > 0 &&
+        nomorRekening.trim().length > 0
+    );
+
+    const handleCopyRekening = () => {
+        const match = nomorRekening.match(/\d{8,}/);
+        const textToCopy = match ? match[0] : nomorRekening;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(textToCopy);
+            setCopiedRekening(true);
+            setTimeout(() => setCopiedRekening(false), 2000);
+        }
+    };
 
     const handleKondisiChange = (itemId: number, val: string) => {
         const newMap = { ...kondisiMap, [itemId]: val };
@@ -123,11 +143,12 @@ export default function PengembalianIndex({
         );
 
         if (isAnyDamaged) {
-            if (biayaDenda <= 0) {
-                setBiayaDenda(50000);
+            // Biarkan kosong untuk diisi manual oleh staf (jangan diisi 50.000 otomatis)
+            if (biayaDenda === 0 || biayaDenda === '') {
+                setBiayaDenda('');
             }
             if (catatanInspeksi.includes('kondisi baik') || !catatanInspeksi.trim()) {
-                setCatatanInspeksi('Ditemukan kerusakan/kehilangan pada fasilitas yang dikembalikan.');
+                setCatatanInspeksi('');
             }
         } else {
             setBiayaDenda(0);
@@ -145,6 +166,8 @@ export default function PengembalianIndex({
 
     const handleOpenInspeksi = (item: PengembalianItem) => {
         setInspeksiItem(item);
+        setIsEditingRekening(false);
+        setCopiedRekening(false);
         const initialKondisi: Record<number, string> = {};
         let hasDamage = false;
         item.items.forEach((it) => {
@@ -155,24 +178,35 @@ export default function PengembalianIndex({
             }
         });
         setKondisiMap(initialKondisi);
-        setBiayaDenda(hasDamage ? (item.biaya_denda || 50000) : 0);
+        // Jika ada kerusakan, ambil nominal denda jika sudah ada, jika belum biarkan kosong ''
+        setBiayaDenda(hasDamage ? (item.biaya_denda > 0 ? item.biaya_denda : '') : 0);
         setNomorRekening(item.nomor_rekening || 'BSI (Bank Syariah Indonesia) No. Rek: 7182938475 a.n. Biro Sarpras Universitas Nurul Huda');
         setCatatanInspeksi(
             item.catatan_inspeksi_admin ||
-            (hasDamage
-                ? 'Ditemukan kerusakan/kehilangan pada barang yang dikembalikan.'
-                : 'Barang kembali lengkap dan dalam kondisi baik.')
+            (hasDamage ? '' : 'Barang kembali lengkap dan dalam kondisi baik.')
         );
     };
 
     const handleSimpanInspeksi = () => {
         if (!inspeksiItem) return;
+
+        if (hasKerusakan) {
+            if (biayaDenda === '' || Number(biayaDenda) <= 0) {
+                alert('Nominal denda kerusakan wajib diisi dengan nominal yang valid.');
+                return;
+            }
+            if (!catatanInspeksi.trim()) {
+                alert('Catatan kerusakan & instruksi denda wajib diisi.');
+                return;
+            }
+        }
+
         setIsProcessing(true);
         router.post(
             `/admin/pengembalian/${inspeksiItem.id}/verifikasi`,
             {
                 kondisi_items: kondisiMap,
-                biaya_denda: hasKerusakan ? biayaDenda : 0,
+                biaya_denda: hasKerusakan ? Number(biayaDenda) : 0,
                 nomor_rekening: hasKerusakan ? nomorRekening : null,
                 catatan_inspeksi_admin: catatanInspeksi,
                 buat_tiket_maintenance: buatTiketMaintenance,
@@ -419,26 +453,18 @@ export default function PengembalianIndex({
                             Cocokkan kondisi fisik barang di loket dengan foto bukti di atas. Setelah diverifikasi, stok akan langsung kembali ke sistem.
                         </p>
 
-                        {isStaf ? (
-                            <button
-                                type="button"
-                                onClick={() => handleOpenInspeksi(item)}
-                                className="w-full py-2.5 px-4 bg-[#006039] hover:bg-[#0f4c3a] text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                                <ClipboardCheck className="w-4 h-4" />
-                                <span>Lakukan Cek Fisik & Inspeksi (Staf Loket)</span>
-                            </button>
-                        ) : (
-                            <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl space-y-1 text-center">
-                                <div className="flex items-center justify-center gap-1.5 text-amber-900 font-bold text-xs">
-                                    <Clock className="w-3.5 h-3.5 text-amber-600" />
-                                    <span>Menunggu Cek Fisik oleh Staf Loket</span>
-                                </div>
-                                <p className="text-[11px] text-amber-800 leading-snug">
-                                    Pemeriksaan kondisi fisik barang di meja loket dilakukan oleh Staf Sarpras. Admin hanya bertugas memverifikasi pelunasan denda mahasiswa.
-                                </p>
-                            </div>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => handleOpenInspeksi(item)}
+                            className="w-full py-2.5 px-4 bg-[#006039] hover:bg-[#0f4c3a] text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                            <ClipboardCheck className="w-4 h-4" />
+                            <span>
+                                {isAdmin
+                                    ? 'Verifikasi Cek Fisik & Selesaikan (Admin)'
+                                    : 'Lakukan Cek Fisik & Inspeksi (Staf Loket)'}
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -522,7 +548,23 @@ export default function PengembalianIndex({
 
                     {/* Kolom 3: DENDA & FORM ARSIP (4 Kolom) */}
                     <div className="md:col-span-4 space-y-2">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">DENDA &amp; FORM ARSIP</p>
+                        <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                DENDA &amp; FORM ARSIP
+                            </p>
+                            {isAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleOpenInspeksi(item)}
+                                    className="text-[10px] font-bold text-[#006039] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                    title="Edit hasil cek kondisi fisik atau denda"
+                                >
+                                    <Wrench className="w-3 h-3" />
+                                    <span>Ubah Cek Fisik</span>
+                                </button>
+                            )}
+                        </div>
+
                         <div className="grid grid-cols-2 gap-2.5">
                             {/* Kotak Biaya Denda / Bebas Denda */}
                             {isDenda ? (
@@ -545,35 +587,132 @@ export default function PengembalianIndex({
                                 </div>
                             )}
 
-                            {/* Kotak Form Arsip */}
+                            {/* Kotak Form Arsip / Bukti (Hanya Gambar yang Bisa Diklik) */}
                             {item.foto_bukti ? (
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setLightboxUrl(item.foto_bukti);
-                                        setLightboxTitle(`Form Arsip & Bukti Foto ${item.kode} - ${item.peminjam}`);
+                                        setLightboxTitle(`Bukti Foto & Arsip ${item.kode} - ${item.peminjam}`);
                                     }}
-                                    className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/90 flex items-center gap-2.5 transition cursor-pointer text-left group"
+                                    className="relative h-full min-h-[58px] rounded-xl overflow-hidden border border-slate-200/90 bg-slate-100 group cursor-pointer shadow-2xs hover:shadow-xs hover:border-[#006039] transition flex items-center justify-center p-0"
+                                    title="Klik untuk memperbesar gambar arsip"
                                 >
-                                    <div className="w-9 h-11 rounded border border-slate-300 bg-white shadow-2xs overflow-hidden shrink-0 flex items-center justify-center">
-                                        <img
-                                            src={item.foto_bukti}
-                                            alt="Arsip"
-                                            className="w-full h-full object-cover"
-                                        />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <span className="text-xs font-bold text-slate-800 block truncate">Form Arsip</span>
-                                        <span className="text-[10px] font-bold text-blue-600 group-hover:underline">Lihat Detail</span>
+                                    <img
+                                        src={item.foto_bukti}
+                                        alt="Bukti Arsip"
+                                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                    />
+                                    <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white backdrop-blur-[1px]">
+                                        <ZoomIn className="w-4 h-4 drop-shadow" />
                                     </div>
                                 </button>
                             ) : (
-                                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center gap-2 text-slate-400">
-                                    <FileText className="w-5 h-5 text-slate-300 shrink-0" />
-                                    <span className="text-[11px]">Tidak ada arsip</span>
+                                <div
+                                    className="h-full min-h-[58px] rounded-xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center text-slate-300"
+                                    title="Tidak ada berkas bukti arsip"
+                                >
+                                    <FileText className="w-5 h-5" />
                                 </div>
                             )}
                         </div>
+
+                        {/* STATUS PEMBAYARAN DENDA & TOMBOL VERIFIKASI ADMIN */}
+                        {isDenda && (
+                            <div className="pt-1.5 space-y-2 border-t border-slate-100 mt-2">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="text-[11px] font-bold">
+                                        {item.status_pembayaran_denda === 'lunas' ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                                <span>Denda Lunas Terverifikasi</span>
+                                            </span>
+                                        ) : item.status_pembayaran_denda === 'menunggu_verifikasi_admin' ? (
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                                                <span>Menunggu Verifikasi Admin</span>
+                                            </span>
+                                        ) : item.status_pembayaran_denda === 'ditolak' ? (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                                                <AlertCircle className="w-3 h-3 text-rose-600" />
+                                                <span>Bukti Ditolak</span>
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                                <CreditCard className="w-3 h-3 text-slate-500" />
+                                                <span>Belum Dibayar</span>
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {item.bukti_bayar_denda && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setLightboxUrl(item.bukti_bayar_denda!);
+                                                setLightboxTitle(`Bukti Transfer Denda ${item.kode} - ${item.peminjam}`);
+                                            }}
+                                            className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                                        >
+                                            <Eye className="w-3 h-3" />
+                                            <span>Lihat Struk</span>
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* AKSI VERIFIKASI DENDA LANGSUNG (ROLE ADMIN) */}
+                                {isAdmin && item.status_pembayaran_denda !== 'lunas' && (
+                                    <div className="pt-0.5">
+                                        {item.status_pembayaran_denda === 'menunggu_verifikasi_admin' ? (
+                                            <div className="flex items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setVerifikasiDendaItem(item);
+                                                        setCatatanVerifikasiDenda(
+                                                            'Pembayaran denda telah masuk ke rekening Biro Sarpras dan diverifikasi lunas.'
+                                                        );
+                                                    }}
+                                                    className="flex-1 py-1.5 px-3 bg-[#006039] hover:bg-[#0f4c3a] text-white font-bold text-[11px] rounded-xl transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                                                    title="Verifikasi lunas pembayaran denda"
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    <span>Verifikasi Lunas</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setVerifikasiDendaItem(item);
+                                                        setCatatanVerifikasiDenda(
+                                                            'Bukti transfer tidak valid atau dana belum masuk ke rekening. Silakan transfer ulang.'
+                                                        );
+                                                    }}
+                                                    className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-[11px] rounded-xl transition cursor-pointer"
+                                                    title="Tolak bukti transfer denda"
+                                                >
+                                                    Tolak
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setVerifikasiDendaItem(item);
+                                                    setCatatanVerifikasiDenda(
+                                                        'Pembayaran denda telah diterima dan diverifikasi lunas oleh Admin Sarpras.'
+                                                    );
+                                                }}
+                                                className="w-full py-1.5 px-3 bg-[#006039] hover:bg-[#0f4c3a] text-white font-bold text-[11px] rounded-xl transition shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                                                title="Verifikasi pelunasan denda langsung oleh admin"
+                                            >
+                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                <span>Verifikasi Lunas Denda (Admin)</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1104,33 +1243,53 @@ export default function PengembalianIndex({
                                 )}
 
                                 {/* Kondisi Masing-masing Barang */}
-                                <div className="space-y-2">
+                                <div className="space-y-2.5">
                                     <label className="block font-bold text-slate-800 text-xs">
                                         Hasil Cek Kondisi Fisik Masing-masing Fasilitas:
                                     </label>
-                                    {inspeksiItem.items.map((it) => (
-                                        <div
-                                            key={it.id}
-                                            className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-3 text-xs"
-                                        >
-                                            <div className="min-w-0">
-                                                <div className="font-bold text-slate-900 truncate">{it.nama_barang}</div>
-                                                <div className="text-[11px] text-slate-500">
-                                                    Jumlah: {it.qty} {it.satuan}
-                                                </div>
-                                            </div>
-                                            <select
-                                                value={kondisiMap[it.id] || 'sempurna'}
-                                                onChange={(e) => handleKondisiChange(it.id, e.target.value)}
-                                                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#006039] shrink-0"
+                                    {inspeksiItem.items.map((it) => {
+                                        const currentKondisi = kondisiMap[it.id] || 'sempurna';
+                                        const isDamaged = ['rusak_ringan', 'rusak_berat', 'hilang'].includes(currentKondisi);
+
+                                        return (
+                                            <div
+                                                key={it.id}
+                                                className={`p-3 rounded-xl flex items-center justify-between gap-3 text-xs transition border ${
+                                                    isDamaged
+                                                        ? 'bg-rose-50/70 border-rose-300 shadow-2xs'
+                                                        : 'bg-slate-50 border-slate-200/90'
+                                                }`}
                                             >
-                                                <option value="sempurna">Sempurna / Utuh (Kondisi Baik)</option>
-                                                <option value="rusak_ringan">Rusak Ringan</option>
-                                                <option value="rusak_berat">Rusak Berat</option>
-                                                <option value="hilang">Hilang</option>
-                                            </select>
-                                        </div>
-                                    ))}
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-slate-900 truncate flex items-center gap-2">
+                                                        <span>{it.nama_barang}</span>
+                                                        {isDamaged && (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-700 border border-rose-200">
+                                                                {currentKondisi.replace('_', ' ')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 mt-0.5">
+                                                        Jumlah: {it.qty} {it.satuan}
+                                                    </div>
+                                                </div>
+                                                <select
+                                                    value={currentKondisi}
+                                                    onChange={(e) => handleKondisiChange(it.id, e.target.value)}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-[#006039] shrink-0 border cursor-pointer ${
+                                                        isDamaged
+                                                            ? 'bg-white border-rose-400 text-rose-800 ring-1 ring-rose-300'
+                                                            : 'bg-white border-slate-200 text-slate-800'
+                                                    }`}
+                                                >
+                                                    <option value="sempurna">Sempurna / Utuh (Kondisi Baik)</option>
+                                                    <option value="rusak_ringan">Rusak Ringan</option>
+                                                    <option value="rusak_berat">Rusak Berat</option>
+                                                    <option value="hilang">Hilang</option>
+                                                </select>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
                                 {/* JIKA SEMUA BARANG DALAM KONDISI BAIK: TIDAK MUNCUL DENDA */}
@@ -1145,66 +1304,217 @@ export default function PengembalianIndex({
                                         </div>
                                     </div>
                                 ) : (
-                                    /* JIKA ADA BARANG RUSAK / HILANG: MUNCULKAN BAGIAN BAYAR DENDA (DIURUS STAF) */
-                                    <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
-                                        <div className="flex items-center gap-2 text-rose-950 font-bold text-xs pb-1 border-b border-rose-200/70">
-                                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                                            <span>Tagihan Denda Kerusakan / Kehilangan (Diurus Staf)</span>
-                                        </div>
-                                        <p className="text-[11px] text-rose-800 leading-snug">
-                                            Fasilitas terindikasi mengalami kerusakan atau hilang saat diperiksa staf. Tentukan besaran nominal denda yang harus dibayar peminjam. Mahasiswa akan mentransfer pembayaran denda, dan bukti transfer nantinya diverifikasi lunas oleh Admin Sarpras.
-                                        </p>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                                            <div>
-                                                <label className="block font-bold text-slate-800 text-xs mb-1">
-                                                    Nominal Denda Kerusakan <span className="text-rose-500">*</span>:
-                                                </label>
-                                                <div className="flex items-center bg-white border border-rose-300 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-rose-500/20 transition">
-                                                    <span className="px-3 py-2 bg-rose-100/70 border-r border-rose-200 text-xs font-extrabold text-rose-800 select-none shrink-0">
-                                                        Rp
+                                    /* JIKA ADA BARANG RUSAK / HILANG: FORM DENDA & INSTRUKSI YANG RAPI & MENARIK */
+                                    <div className="p-4 sm:p-5 bg-gradient-to-b from-rose-50/70 via-white to-amber-50/30 border border-rose-200/90 rounded-2xl space-y-4 shadow-2xs animate-in fade-in duration-200">
+                                        {/* Header Tagihan Denda */}
+                                        <div className="flex items-start gap-3 pb-3 border-b border-rose-200/70">
+                                            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 shadow-2xs">
+                                                <AlertTriangle className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                    <h4 className="font-black text-xs sm:text-sm text-rose-950">
+                                                        Tagihan Denda Kerusakan / Kehilangan (Diurus Staf)
+                                                    </h4>
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                                        Wajib Dilengkapi
                                                     </span>
-                                                    <input
-                                                        type="text"
-                                                        inputMode="numeric"
-                                                        required
-                                                        value={biayaDenda > 0 ? biayaDenda.toLocaleString('id-ID') : ''}
-                                                        onChange={(e) => {
-                                                            const rawDigits = e.target.value.replace(/\D/g, '');
-                                                            setBiayaDenda(rawDigits ? parseInt(rawDigits, 10) : 0);
-                                                        }}
-                                                        className="w-full px-3 py-2 bg-transparent text-xs font-bold text-slate-900 focus:outline-none"
-                                                        placeholder="Contoh: 100.000"
-                                                    />
+                                                </div>
+                                                <p className="text-[11px] text-rose-800 mt-1 leading-relaxed">
+                                                    Fasilitas terindikasi mengalami kerusakan atau hilang saat diperiksa staf. Silakan tentukan nominal denda serta tuliskan catatan instruksi kerusakan untuk peminjam.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* 1. Input Nominal Denda */}
+                                        <div className="space-y-1.5">
+                                            <label className="block font-bold text-slate-800 text-xs">
+                                                Nominal Denda Kerusakan <span className="text-rose-500 font-extrabold">* (Wajib Diisi)</span>:
+                                            </label>
+                                            <div
+                                                className={`flex items-center bg-white border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-rose-500/20 transition shadow-2xs ${
+                                                    biayaDenda === '' || Number(biayaDenda) <= 0
+                                                        ? 'border-rose-300'
+                                                        : 'border-emerald-400 ring-1 ring-emerald-300/40'
+                                                }`}
+                                            >
+                                                <span className="px-3.5 py-2.5 bg-rose-100/80 border-r border-rose-200 text-xs font-extrabold text-rose-800 select-none shrink-0">
+                                                    Rp
+                                                </span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    required
+                                                    value={
+                                                        biayaDenda !== '' && Number(biayaDenda) > 0
+                                                            ? Number(biayaDenda).toLocaleString('id-ID')
+                                                            : ''
+                                                    }
+                                                    onChange={(e) => {
+                                                        const rawDigits = e.target.value.replace(/\D/g, '');
+                                                        setBiayaDenda(rawDigits ? parseInt(rawDigits, 10) : '');
+                                                    }}
+                                                    className="w-full px-3.5 py-2.5 bg-transparent text-sm font-extrabold text-slate-900 focus:outline-none placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs"
+                                                    placeholder="Ketikkan nominal denda (contoh: 50.000, 100.000, 250.000...)"
+                                                />
+                                            </div>
+                                            {biayaDenda === '' || Number(biayaDenda) <= 0 ? (
+                                                <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                                    Nominal denda belum diisi. Masukkan nominal ganti rugi kerusakan.
+                                                </p>
+                                            ) : (
+                                                <p className="text-[10px] text-emerald-700 font-bold mt-1 flex items-center gap-1">
+                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                    Denda sebesar Rp {Number(biayaDenda).toLocaleString('id-ID')} akan ditagihkan ke mahasiswa/peminjam.
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* 2. Catatan Kerusakan & Instruksi Denda (Textarea) */}
+                                        <div className="space-y-1.5">
+                                            <label className="block font-bold text-slate-800 text-xs">
+                                                Catatan Kerusakan &amp; Instruksi Denda <span className="text-rose-500 font-extrabold">* (Wajib Diisi)</span>:
+                                            </label>
+                                            <textarea
+                                                rows={3}
+                                                required
+                                                value={catatanInspeksi}
+                                                onChange={(e) => setCatatanInspeksi(e.target.value)}
+                                                className={`w-full px-3.5 py-2.5 bg-white border rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition resize-none placeholder:text-slate-400 shadow-2xs leading-relaxed ${
+                                                    !catatanInspeksi.trim()
+                                                        ? 'border-rose-300'
+                                                        : 'border-slate-300'
+                                                }`}
+                                                placeholder="Tuliskan detail kerusakan fisik barang (misal: layar monitor retak di sudut kanan, kabel power hilang) serta batas waktu transfer bagi peminjam..."
+                                            />
+                                            {!catatanInspeksi.trim() ? (
+                                                <p className="text-[10px] text-rose-600 font-semibold mt-0.5 flex items-center gap-1">
+                                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                                    Catatan kerusakan wajib diisi agar peminjam memahami alasan tagihan denda.
+                                                </p>
+                                            ) : (
+                                                <p className="text-[10px] text-slate-500 mt-0.5">
+                                                    Catatan ini langsung ditampilkan di halaman peminjam untuk instruksi pembayaran.
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* 3. Kartu Nomor Rekening Tujuan Pembayaran Denda (Modern & Menarik) */}
+                                        <div className="space-y-2 pt-1">
+                                            <div className="flex items-center justify-between">
+                                                <label className="block font-bold text-slate-800 text-xs">
+                                                    Nomor Rekening Tujuan Pembayaran Denda:
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsEditingRekening(!isEditingRekening)}
+                                                    className="text-[11px] font-bold text-[#006039] hover:underline cursor-pointer"
+                                                >
+                                                    {isEditingRekening ? 'Selesai Edit' : 'Ubah Info Rekening'}
+                                                </button>
+                                            </div>
+
+                                            {/* Kartu Bank Syariah Indonesia Eksklusif */}
+                                            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#004e2e] via-[#006039] to-[#0d7d4d] text-white p-4 sm:p-4.5 shadow-md border border-emerald-600/40">
+                                                {/* Dekorasi Visual Background */}
+                                                <div className="absolute -right-6 -bottom-6 w-28 h-28 rounded-full bg-white/5 pointer-events-none blur-xl" />
+                                                <div className="absolute top-2 right-2 p-2 opacity-15 pointer-events-none">
+                                                    <Building2 className="w-16 h-16 text-white" />
+                                                </div>
+
+                                                <div className="relative z-10 space-y-3">
+                                                    {/* Header Kartu Bank */}
+                                                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs border border-white/20 shadow-2xs">
+                                                                <CreditCard className="w-4 h-4 text-emerald-200" />
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs font-black tracking-wide text-white uppercase flex items-center gap-1.5">
+                                                                    <span>BSI (Bank Syariah Indonesia)</span>
+                                                                </div>
+                                                                <div className="text-[10px] text-emerald-200/90 font-medium">
+                                                                    Rekening Resmi Kas Biro Sarpras
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-300/30">
+                                                            Tujuan Transfer Mahasiswa
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Nomor Rekening & Tombol Salin */}
+                                                    <div className="bg-black/25 backdrop-blur-xs rounded-xl p-3 border border-white/15 flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-[9px] uppercase font-bold tracking-wider text-emerald-200/80">
+                                                                Nomor Rekening
+                                                            </div>
+                                                            <div className="text-base sm:text-lg font-mono font-black tracking-wider text-white select-all">
+                                                                {nomorRekening.match(/\d{8,}/)
+                                                                    ? nomorRekening.match(/\d{8,}/)![0]
+                                                                    : '7182938475'}
+                                                            </div>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleCopyRekening}
+                                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer shrink-0 ${
+                                                                copiedRekening
+                                                                    ? 'bg-emerald-400 text-emerald-950 font-black'
+                                                                    : 'bg-white/20 hover:bg-white/30 text-white border border-white/25'
+                                                            }`}
+                                                            title="Salin nomor rekening ke clipboard"
+                                                        >
+                                                            {copiedRekening ? (
+                                                                <>
+                                                                    <Check className="w-3.5 h-3.5" />
+                                                                    <span>Tersalin!</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Copy className="w-3.5 h-3.5" />
+                                                                    <span>Salin No. Rek</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Nama Pemilik Rekening */}
+                                                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                                                        <div>
+                                                            <span className="text-emerald-200/80">Atas Nama: </span>
+                                                            <span className="font-bold text-white">
+                                                                Biro Sarpras Universitas Nurul Huda
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[10px] text-emerald-200/70 italic hidden sm:inline">
+                                                            Diverifikasi oleh Admin Sarpras
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div>
-                                                <label className="block font-bold text-slate-800 text-xs mb-1">
-                                                    Catatan Kerusakan &amp; Instruksi Denda:
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={catatanInspeksi}
-                                                    onChange={(e) => setCatatanInspeksi(e.target.value)}
-                                                    className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 transition"
-                                                    placeholder="Deskripsi kerusakan barang..."
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block font-bold text-slate-800 text-xs mb-1">
-                                                Nomor Rekening Tujuan Pembayaran Denda:
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={nomorRekening}
-                                                onChange={(e) => setNomorRekening(e.target.value)}
-                                                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20"
-                                                placeholder="Contoh: BSI No. Rek 7182938475 a.n. Biro Sarpras"
-                                                required
-                                            />
+                                            {/* Input Kustomisasi Teks Rekening Jika Dibutuhkan */}
+                                            {isEditingRekening && (
+                                                <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-2xs animate-in fade-in duration-150">
+                                                    <label className="block text-[11px] font-bold text-slate-700">
+                                                        Teks Rekening Custom (Opsional):
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={nomorRekening}
+                                                        onChange={(e) => setNomorRekening(e.target.value)}
+                                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#006039]"
+                                                        placeholder="Contoh: BSI No. Rek 7182938475 a.n. Biro Sarpras"
+                                                        required
+                                                    />
+                                                    <p className="text-[10px] text-slate-500">
+                                                        Teks ini akan disertakan pada detail pembayaran mahasiswa peminjam.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -1221,7 +1531,7 @@ export default function PengembalianIndex({
                                 </button>
                                 <button
                                     type="button"
-                                    disabled={isProcessing || (hasKerusakan && biayaDenda <= 0)}
+                                    disabled={isProcessing || !isFormDendaValid}
                                     onClick={handleSimpanInspeksi}
                                     className="px-5 py-2 bg-[#006039] hover:bg-[#0f4c3a] text-white rounded-xl font-bold text-xs shadow-xs transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
                                 >

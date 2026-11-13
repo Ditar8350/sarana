@@ -34,14 +34,8 @@ class ProfileController extends Controller
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];
-
-        if ($request->has('nomor_induk')) {
-            $user->nomor_induk = $validated['nomor_induk'] ?: null;
-        }
-
-        if ($request->has('no_hp')) {
-            $user->no_hp = $validated['no_hp'] ?: null;
-        }
+        $user->nomor_induk = $validated['nomor_induk'];
+        $user->no_hp = $validated['no_hp'];
 
         if (! $user->isKepalaBagian() && ! $user->isAdmin() && ! $user->isStaf()) {
             if ($request->hasAny(['fakultas', 'prodi'])) {

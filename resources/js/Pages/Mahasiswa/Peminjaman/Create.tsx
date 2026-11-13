@@ -101,7 +101,9 @@ export default function PeminjamanCreate({
     initialSarprasId,
 }: Props) {
     const { auth, flash } = usePage().props as any;
-    const isUmum = !auth?.user?.nomor_induk || (auth?.user?.role as string) === 'umum';
+    const userRole = (auth?.user?.role as string) || '';
+    const isUmum = !auth?.user?.nomor_induk || userRole === 'umum';
+    const isPicRuangan = userRole === 'staf_ruangan' || userRole === 'kepala_bagian' || userRole === 'staf';
 
     const [ktmFileName, setKtmFileName] = useState<string | null>(null);
     const profileFakultas: string = !isUmum ? auth?.user?.fakultas || '' : '';
@@ -109,6 +111,14 @@ export default function PeminjamanCreate({
     const [selectedFakultas, setSelectedFakultas] = useState<string>(profileFakultas);
     const [selectedProdi, setSelectedProdi] = useState<string>(profileProdi);
     const [clientError, setClientError] = useState<string | null>(null);
+
+    const todayDateString = useMemo(() => {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }, []);
 
     // State Modal Pemilih Fasilitas (untuk "+ Tambah Fasilitas Lain" atau "Pilih dari Katalog")
     const [showPickerModal, setShowPickerModal] = useState(false);
@@ -235,13 +245,25 @@ export default function PeminjamanCreate({
             setClientError(
                 isUmum
                     ? 'Foto / berkas Kartu Tanda Penduduk (KTP) wajib diunggah.'
-                    : 'Foto / berkas Kartu Tanda Mahasiswa (KTM) wajib diunggah.'
+                    : isPicRuangan
+                      ? 'Foto / berkas kartu identitas pegawai / tanda pengenal wajib diunggah.'
+                      : 'Foto / berkas Kartu Tanda Mahasiswa (KTM) wajib diunggah.'
             );
             return;
         }
 
         if (!data.tanggal_mulai || !data.tanggal_kembali_rencana) {
             setClientError('Silakan tentukan Tanggal Mulai dan Tanggal Selesai peminjaman.');
+            return;
+        }
+
+        if (data.tanggal_mulai < todayDateString) {
+            setClientError('Tanggal mulai peminjaman tidak boleh sebelum tanggal hari ini.');
+            return;
+        }
+
+        if (data.tanggal_kembali_rencana < data.tanggal_mulai) {
+            setClientError('Tanggal selesai peminjaman tidak boleh lebih awal dari tanggal mulai.');
             return;
         }
 
@@ -299,7 +321,7 @@ export default function PeminjamanCreate({
         {
             step: 'STEP 2',
             title: 'Validasi Admin Sarpras',
-            desc: `Admin memverifikasi berkas ${isUmum ? 'KTP' : 'KTM'} serta ketersediaan jadwal fasilitas.`,
+            desc: `Admin memverifikasi berkas ${isUmum ? 'KTP' : isPicRuangan ? 'identitas pegawai' : 'KTM'} serta ketersediaan jadwal fasilitas.`,
             icon: ShieldCheck,
             iconBg: 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-900/15',
             badgeBg: 'bg-blue-50 text-blue-700 border-blue-200/80',
@@ -317,7 +339,7 @@ export default function PeminjamanCreate({
         {
             step: 'STEP 4',
             title: 'Upload Bukti Terima (Sukses)',
-            desc: `Tunjukkan ${isUmum ? 'KTP' : 'KTM'} asli di loket, lalu unggah foto barang diterima hingga Sukses.`,
+            desc: `Tunjukkan ${isUmum ? 'KTP' : isPicRuangan ? 'tanda pengenal' : 'KTM'} asli di loket, lalu unggah foto barang diterima hingga Sukses.`,
             icon: Camera,
             iconBg: 'bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-sm shadow-teal-900/15',
             badgeBg: 'bg-teal-50 text-teal-800 border-teal-200/80',
@@ -451,7 +473,11 @@ export default function PeminjamanCreate({
                         {/* 1. IDENTITAS MAHASISWA / PEMINJAM */}
                         <div className="space-y-3.5">
                             <h3 className="font-bold text-slate-900 text-sm">
-                                {isUmum ? '1. Identitas Peminjam (Umum)' : '1. Identitas Mahasiswa / Peminjam'}
+                                {isUmum
+                                    ? '1. Identitas Peminjam (Umum)'
+                                    : isPicRuangan
+                                      ? '1. Identitas Peminjam'
+                                      : '1. Identitas Mahasiswa / Peminjam'}
                             </h3>
 
                             {isUmum ? (
@@ -542,13 +568,14 @@ export default function PeminjamanCreate({
 
                                         <div>
                                             <label className="block font-bold text-slate-700 mb-1">
-                                                NIM (Nomor Induk Mahasiswa) <span className="text-rose-500">*</span>
+                                                {isPicRuangan ? 'NIP.Y' : 'NIM (Nomor Induk Mahasiswa)'} <span className="text-rose-500">*</span>
                                             </label>
                                             <input
                                                 type="text"
                                                 required
                                                 value={data.nim_nip}
                                                 onChange={(e) => setData('nim_nip', e.target.value)}
+                                                placeholder={isPicRuangan ? 'Contoh: KPB-2026-001' : 'Contoh: 2355202065'}
                                                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:bg-white focus:border-[#006039] outline-hidden"
                                             />
                                             {errors.nim_nip && (
@@ -626,10 +653,14 @@ export default function PeminjamanCreate({
                                 </div>
                             )}
 
-                            {/* Upload Identitas (KTM / KTP) - WAJIB DIISI */}
+                            {/* Upload Identitas (KTM / KTP / Tanda Pengenal) - WAJIB DIISI */}
                             <div>
                                 <label className="block font-bold text-slate-700 mb-1">
-                                    {isUmum ? 'Unggah Kartu Tanda Penduduk (KTP)' : 'Unggah Kartu Tanda Mahasiswa (KTM)'}{' '}
+                                    {isUmum
+                                        ? 'Unggah Kartu Tanda Penduduk (KTP)'
+                                        : isPicRuangan
+                                          ? 'Unggah Tanda Pengenal / Kartu Pegawai'
+                                          : 'Unggah Kartu Tanda Mahasiswa (KTM)'}{' '}
                                     <span className="text-rose-500 font-extrabold">*</span>{' '}
                                     <span className="text-rose-600 font-bold text-[11px]">(Wajib Diisi)</span>{' '}
                                     <span className="text-slate-400 font-normal">(JPG / PNG / PDF, Maks 5MB)</span>
@@ -650,7 +681,7 @@ export default function PeminjamanCreate({
                                     ) : (
                                         <div className="flex items-center gap-2 text-slate-500">
                                             <UploadCloud className="w-4 h-4 text-slate-400 shrink-0" />
-                                            <span>Klik untuk memilih berkas {isUmum ? 'KTP' : 'KTM'} wajib (Maks 5MB)</span>
+                                            <span>Klik untuk memilih berkas {isUmum ? 'KTP' : isPicRuangan ? 'identitas / kartu pegawai' : 'KTM'} wajib (Maks 5MB)</span>
                                         </div>
                                     )}
                                     <input
@@ -780,8 +811,23 @@ export default function PeminjamanCreate({
                                     <input
                                         type="date"
                                         required
+                                        min={todayDateString}
                                         value={data.tanggal_mulai}
-                                        onChange={(e) => setData('tanggal_mulai', e.target.value)}
+                                        onChange={(e) => {
+                                            const newStart = e.target.value;
+                                            setData((prev) => {
+                                                const shouldAdjustEnd =
+                                                    prev.tanggal_kembali_rencana &&
+                                                    prev.tanggal_kembali_rencana < newStart;
+                                                return {
+                                                    ...prev,
+                                                    tanggal_mulai: newStart,
+                                                    tanggal_kembali_rencana: shouldAdjustEnd
+                                                        ? newStart
+                                                        : prev.tanggal_kembali_rencana,
+                                                };
+                                            });
+                                        }}
                                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-[#006039] outline-hidden font-medium text-slate-800"
                                     />
                                     {errors.tanggal_mulai && (
@@ -796,6 +842,7 @@ export default function PeminjamanCreate({
                                     <input
                                         type="date"
                                         required
+                                        min={data.tanggal_mulai || todayDateString}
                                         value={data.tanggal_kembali_rencana}
                                         onChange={(e) => setData('tanggal_kembali_rencana', e.target.value)}
                                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-[#006039] outline-hidden font-medium text-slate-800"
